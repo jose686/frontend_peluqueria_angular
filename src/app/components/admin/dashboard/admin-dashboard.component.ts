@@ -66,15 +66,17 @@ import { AuthService } from '../../../services/auth.service';
   `,
   styles: [`
     .admin-container {
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      gap: 2.5rem;
-      min-height: calc(100vh - 350px);
+      display: flex;
+      gap: 1.5rem;
+      min-height: calc(100vh - 250px);
+      width: 100%;
     }
     .admin-sidebar {
       padding: 1.5rem;
       height: fit-content;
       border-radius: var(--border-radius-md);
+      width: 260px;
+      flex-shrink: 0;
     }
     .admin-title {
       font-size: 1.15rem;
@@ -119,12 +121,16 @@ import { AuthService } from '../../../services/auth.service';
       font-weight: 600;
     }
     .admin-content {
+      flex-grow: 1;
       min-width: 0;
     }
     @media(max-width: 992px) {
       .admin-container {
-        grid-template-columns: 1fr;
+        flex-direction: column;
         gap: 1.5rem;
+      }
+      .admin-sidebar {
+        width: 100%;
       }
     }
   `]
