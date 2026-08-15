@@ -18,4 +18,12 @@ export class WorkerScheduleService {
   saveShift(workerId: string, request: ShiftRequestDto): Observable<ShiftDto> {
     return this.http.post<ShiftDto>(`${this.apiUrl}/worker/${workerId}`, request);
   }
+
+  getShiftsByWeek(startDate: string): Observable<ShiftDto[]> {
+    return this.http.get<ShiftDto[]>(`${this.apiUrl}/week?startDate=${startDate}`);
+  }
+
+  deleteShift(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
+  }
 }

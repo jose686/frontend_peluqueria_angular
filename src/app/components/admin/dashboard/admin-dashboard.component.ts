@@ -5,7 +5,7 @@ import { AdminBlogComponent } from '../blog/admin-blog.component';
 import { AdminMediaComponent } from '../media/admin-media.component';
 import { GestionCitasAdminComponent } from '../gestion-citas-admin/gestion-citas-admin.component';
 import { WorkerRegistrationComponent } from '../worker-registration/worker-registration.component';
-import { WorkerScheduleComponent } from '../worker-schedule/worker-schedule.component';
+import { WeeklyQuadrantComponent } from '../weekly-quadrant/weekly-quadrant.component';
 import { AuthService } from '../../../services/auth.service';
 
 @Component({
@@ -18,7 +18,7 @@ import { AuthService } from '../../../services/auth.service';
     AdminMediaComponent,
     GestionCitasAdminComponent,
     WorkerRegistrationComponent,
-    WorkerScheduleComponent
+    WeeklyQuadrantComponent
   ],
   template: `
     <div class="admin-container fade-in-el">
@@ -49,7 +49,7 @@ import { AuthService } from '../../../services/auth.service';
             <app-worker-registration></app-worker-registration>
           }
           @case ('horarios') {
-            <app-worker-schedule></app-worker-schedule>
+            <app-weekly-quadrant></app-weekly-quadrant>
           }
           @case ('catalog') {
             <app-admin-catalog></app-admin-catalog>
