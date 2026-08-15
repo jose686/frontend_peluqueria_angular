@@ -579,6 +579,7 @@ export class WeeklyQuadrantComponent implements OnInit {
   }
 
   applyTemplate(type: string): void {
+    this.scheduleForm.enable();
     if (type === 'morning') {
       this.scheduleForm.patchValue({
         horaInicio: '09:00',

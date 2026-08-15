@@ -69,7 +69,12 @@ import { AuthService } from '../../../services/auth.service';
       display: flex;
       gap: 1.5rem;
       min-height: calc(100vh - 250px);
-      width: 100%;
+      width: 100vw;
+      margin-left: calc(-50vw + 50%);
+      margin-right: calc(-50vw + 50%);
+      padding-left: 2rem;
+      padding-right: 2rem;
+      box-sizing: border-box;
     }
     .admin-sidebar {
       padding: 1.5rem;
