@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { WorkerService } from '../../../services/worker.service';
@@ -10,6 +10,7 @@ import { ShiftDto, ShiftRequestDto } from '../../../models/worker-schedule.model
   selector: 'app-weekly-quadrant',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="quadrant-container glass-panel fade-in-el">
       <div class="header-bar">
@@ -437,6 +438,7 @@ export class WeeklyQuadrantComponent implements OnInit {
   private fb = inject(FormBuilder);
   private workerService = inject(WorkerService);
   private scheduleService = inject(WorkerScheduleService);
+  private cdr = inject(ChangeDetectorRef);
 
   workers: WorkerDto[] = [];
   shifts: ShiftDto[] = [];
@@ -465,16 +467,28 @@ export class WeeklyQuadrantComponent implements OnInit {
 
   loadWorkers(): void {
     this.workerService.getAll().subscribe({
-      next: (data) => this.workers = data,
-      error: () => this.errorMessage = 'No se pudieron cargar los estilistas.'
+      next: (data) => {
+        this.workers = data;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.errorMessage = 'No se pudieron cargar los estilistas.';
+        this.cdr.markForCheck();
+      }
     });
   }
 
   loadWeekShifts(): void {
     const formattedStart = this.formatDate(this.weekDays[0]);
     this.scheduleService.getShiftsByWeek(formattedStart).subscribe({
-      next: (data) => this.shifts = data,
-      error: () => this.errorMessage = 'No se pudieron cargar los turnos de la semana.'
+      next: (data) => {
+        this.shifts = data;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.errorMessage = 'No se pudieron cargar los turnos de la semana.';
+        this.cdr.markForCheck();
+      }
     });
   }
 
@@ -518,6 +532,7 @@ export class WeeklyQuadrantComponent implements OnInit {
     this.brushMode = mode;
     this.errorMessage = '';
     this.successMessage = '';
+    this.cdr.markForCheck();
   }
 
   onCellClick(worker: WorkerDto, date: Date, shift: ShiftDto | undefined): void {
@@ -531,17 +546,20 @@ export class WeeklyQuadrantComponent implements OnInit {
           next: () => {
             this.submitting = false;
             this.successMessage = `Turno eliminado para ${worker.nombre}.`;
-            this.loadWeekShifts();
+            this.shifts = this.shifts.filter(s => s.id !== shift.id);
+            this.cdr.markForCheck();
           },
           error: (err) => {
             this.submitting = false;
             this.errorMessage = err.error?.error || 'Error al eliminar el turno.';
+            this.cdr.markForCheck();
           }
         });
       }
     } else {
       if (this.scheduleForm.invalid) {
         this.errorMessage = 'Por favor, configura un horario válido en el pincel (Inicio y Fin obligatorios).';
+        this.cdr.markForCheck();
         return;
       }
 
@@ -556,14 +574,23 @@ export class WeeklyQuadrantComponent implements OnInit {
       };
 
       this.scheduleService.saveShift(worker.id, request).subscribe({
-        next: () => {
+        next: (savedShift) => {
           this.submitting = false;
           this.successMessage = `Turno asignado a ${worker.nombre}.`;
-          this.loadWeekShifts();
+          
+          const index = this.shifts.findIndex(s => s.workerId === worker.id && s.fecha === request.fecha);
+          if (index !== -1) {
+            this.shifts[index] = savedShift;
+          } else {
+            this.shifts.push(savedShift);
+          }
+          this.shifts = [...this.shifts];
+          this.cdr.markForCheck();
         },
         error: (err) => {
           this.submitting = false;
           this.errorMessage = err.error?.error || 'Error al guardar el turno.';
+          this.cdr.markForCheck();
         }
       });
     }
@@ -584,6 +611,7 @@ export class WeeklyQuadrantComponent implements OnInit {
         breakEndTime: ''
       });
     }
+    this.cdr.markForCheck();
   }
 
   formatTime(time: string | undefined): string {
