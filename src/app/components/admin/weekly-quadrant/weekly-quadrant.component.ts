@@ -88,12 +88,7 @@ import { ShiftDto, ShiftRequestDto } from '../../../models/worker-schedule.model
         }
       </div>
 
-      @if (successMessage) {
-        <div class="alert alert-success">{{ successMessage }}</div>
-      }
-      @if (errorMessage) {
-        <div class="alert alert-danger">{{ errorMessage }}</div>
-      }
+
 
       <!-- Matriz del Cuadrante -->
       <div class="matrix-scroll">
@@ -456,8 +451,6 @@ export class WeeklyQuadrantComponent implements OnInit {
   }, { validators: [this.scheduleTimeValidator] });
 
   submitting = false;
-  successMessage = '';
-  errorMessage = '';
 
   ngOnInit(): void {
     this.calculateWeekDays();
@@ -472,7 +465,7 @@ export class WeeklyQuadrantComponent implements OnInit {
         this.cdr.markForCheck();
       },
       error: () => {
-        this.errorMessage = 'No se pudieron cargar los estilistas.';
+        console.error('No se pudieron cargar los estilistas.');
         this.cdr.markForCheck();
       }
     });
@@ -486,7 +479,7 @@ export class WeeklyQuadrantComponent implements OnInit {
         this.cdr.markForCheck();
       },
       error: () => {
-        this.errorMessage = 'No se pudieron cargar los turnos de la semana.';
+        console.error('No se pudieron cargar los turnos de la semana.');
         this.cdr.markForCheck();
       }
     });
@@ -530,36 +523,28 @@ export class WeeklyQuadrantComponent implements OnInit {
 
   setBrushMode(mode: 'paint' | 'erase'): void {
     this.brushMode = mode;
-    this.errorMessage = '';
-    this.successMessage = '';
     this.cdr.markForCheck();
   }
 
   onCellClick(worker: WorkerDto, date: Date, shift: ShiftDto | undefined): void {
-    this.errorMessage = '';
-    this.successMessage = '';
-
     if (this.brushMode === 'erase') {
       if (shift && shift.id) {
         this.submitting = true;
         this.scheduleService.deleteShift(shift.id).subscribe({
           next: () => {
             this.submitting = false;
-            this.successMessage = `Turno eliminado para ${worker.nombre}.`;
             this.shifts = this.shifts.filter(s => s.id !== shift.id);
             this.cdr.markForCheck();
           },
           error: (err) => {
             this.submitting = false;
-            this.errorMessage = err.error?.error || 'Error al eliminar el turno.';
+            console.error(err.error?.error || 'Error al eliminar el turno.');
             this.cdr.markForCheck();
           }
         });
       }
     } else {
       if (this.scheduleForm.invalid) {
-        this.errorMessage = 'Por favor, configura un horario válido en el pincel (Inicio y Fin obligatorios).';
-        this.cdr.markForCheck();
         return;
       }
 
@@ -576,7 +561,6 @@ export class WeeklyQuadrantComponent implements OnInit {
       this.scheduleService.saveShift(worker.id, request).subscribe({
         next: (savedShift) => {
           this.submitting = false;
-          this.successMessage = `Turno asignado a ${worker.nombre}.`;
           
           const index = this.shifts.findIndex(s => s.workerId === worker.id && s.fecha === request.fecha);
           if (index !== -1) {
@@ -589,7 +573,7 @@ export class WeeklyQuadrantComponent implements OnInit {
         },
         error: (err) => {
           this.submitting = false;
-          this.errorMessage = err.error?.error || 'Error al guardar el turno.';
+          console.error(err.error?.error || 'Error al guardar el turno.');
           this.cdr.markForCheck();
         }
       });
