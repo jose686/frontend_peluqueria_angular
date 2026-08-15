@@ -5,6 +5,7 @@ import { AdminBlogComponent } from '../blog/admin-blog.component';
 import { AdminMediaComponent } from '../media/admin-media.component';
 import { GestionCitasAdminComponent } from '../gestion-citas-admin/gestion-citas-admin.component';
 import { WorkerRegistrationComponent } from '../worker-registration/worker-registration.component';
+import { WorkerScheduleComponent } from '../worker-schedule/worker-schedule.component';
 import { AuthService } from '../../../services/auth.service';
 
 @Component({
@@ -16,7 +17,8 @@ import { AuthService } from '../../../services/auth.service';
     AdminBlogComponent,
     AdminMediaComponent,
     GestionCitasAdminComponent,
-    WorkerRegistrationComponent
+    WorkerRegistrationComponent,
+    WorkerScheduleComponent
   ],
   template: `
     <div class="admin-container fade-in-el">
@@ -27,6 +29,7 @@ import { AuthService } from '../../../services/auth.service';
           <button (click)="setTab('disponibilidad')" [class.active]="activeTab === 'disponibilidad'">🗓️ Disponibilidad</button>
           @if (isAdmin()) {
             <button (click)="setTab('workers')" [class.active]="activeTab === 'workers'">👤 Profesionales</button>
+            <button (click)="setTab('horarios')" [class.active]="activeTab === 'horarios'">🕒 Horarios</button>
             <button (click)="setTab('catalog')" [class.active]="activeTab === 'catalog'">💇‍♀️ Catálogo</button>
             <button (click)="setTab('blog')" [class.active]="activeTab === 'blog'">📝 Blog</button>
             <button (click)="setTab('media')" [class.active]="activeTab === 'media'">📁 Biblioteca de Medios</button>
@@ -44,6 +47,9 @@ import { AuthService } from '../../../services/auth.service';
           }
           @case ('workers') {
             <app-worker-registration></app-worker-registration>
+          }
+          @case ('horarios') {
+            <app-worker-schedule></app-worker-schedule>
           }
           @case ('catalog') {
             <app-admin-catalog></app-admin-catalog>
@@ -129,7 +135,7 @@ export class AdminDashboardComponent {
   activeTab = 'citas';
 
   setTab(tab: string): void {
-    if (!this.isAdmin() && ['workers', 'catalog', 'blog', 'media'].includes(tab)) {
+    if (!this.isAdmin() && ['workers', 'horarios', 'catalog', 'blog', 'media'].includes(tab)) {
       return;
     }
     this.activeTab = tab;
