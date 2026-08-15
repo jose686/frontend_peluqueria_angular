@@ -123,11 +123,11 @@ import { ShiftDto, ShiftRequestDto } from '../../../models/worker-schedule.model
                   (click)="onCellClick(worker, day, shift)"
                 >
                   <div class="shift-time-block">
-                    {{ shift.horaInicio }} - {{ shift.horaFin }}
+                    {{ formatTime(shift.horaInicio) }} - {{ formatTime(shift.horaFin) }}
                   </div>
                   @if (shift.breakStartTime && shift.breakEndTime) {
                     <div class="break-badge">
-                      ☕ Descanso: {{ shift.breakStartTime }} - {{ shift.breakEndTime }}
+                      ☕ Descanso: {{ formatTime(shift.breakStartTime) }} - {{ formatTime(shift.breakEndTime) }}
                     </div>
                   }
                 </div>
@@ -584,6 +584,11 @@ export class WeeklyQuadrantComponent implements OnInit {
         breakEndTime: ''
       });
     }
+  }
+
+  formatTime(time: string | undefined): string {
+    if (!time) return '';
+    return time.substring(0, 5); // "09:00:00" -> "09:00"
   }
 
   private formatDate(date: Date): string {
