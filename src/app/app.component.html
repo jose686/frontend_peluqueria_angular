@@ -1,0 +1,63 @@
+<!-- Main Navigation Header -->
+<header class="navbar-header glass-panel">
+  <div class="container nav-container">
+    <a routerLink="/" class="logo-brand">
+      <span class="logo-glow">AURA</span>
+      <span class="logo-sub">STUDIO</span>
+    </a>
+
+    <nav class="nav-links">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Inicio</a>
+      <a routerLink="/catalog" routerLinkActive="active">Catálogo</a>
+      <a routerLink="/blog" routerLinkActive="active">Blog</a>
+
+      @if (authService.isLoggedIn()) {
+        @if (authService.isAdmin()) {
+          <a routerLink="/admin" routerLinkActive="active" class="nav-admin-link">Administración</a>
+        } @else {
+          <a routerLink="/mis-citas" routerLinkActive="active" class="nav-client-link">Mis Citas</a>
+        }
+      }
+    </nav>
+
+    <div class="nav-auth">
+      @if (authService.isLoggedIn()) {
+        <span class="user-greeting">Hola, <strong>{{ authService.currentUserSignal()?.nombre }}</strong></span>
+        <button (click)="logout()" class="btn btn-secondary btn-sm">Cerrar Sesión</button>
+      } @else {
+        <a routerLink="/login" class="btn btn-secondary btn-sm">Iniciar Sesión</a>
+        <a routerLink="/register" class="btn btn-primary btn-sm">Registrarse</a>
+      }
+    </div>
+  </div>
+</header>
+
+<!-- Main Workspace Content -->
+<main class="app-main container fade-in-el">
+  <router-outlet></router-outlet>
+</main>
+
+<!-- Footer -->
+<footer class="app-footer">
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      <h3>AURA Studio</h3>
+      <p>Estética & Peluquería de vanguardia. Elevamos tu estilo y cuidamos de tu bienestar.</p>
+    </div>
+    <div class="footer-hours">
+      <h4>Horario</h4>
+      <p>Lunes - Viernes: 9:00 - 20:00</p>
+      <p>Sábados: 9:00 - 15:00</p>
+      <p>Domingos: Cerrado</p>
+    </div>
+    <div class="footer-links">
+      <h4>Navegación</h4>
+      <a routerLink="/">Inicio</a>
+      <a routerLink="/catalog">Catálogo</a>
+      <a routerLink="/blog">Blog</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>&copy; 2026 AURA Studio. Todos los derechos reservados.</p>
+  </div>
+</footer>
