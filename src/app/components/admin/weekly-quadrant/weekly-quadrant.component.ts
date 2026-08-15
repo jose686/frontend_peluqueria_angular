@@ -52,25 +52,21 @@ import { ShiftDto, ShiftRequestDto } from '../../../models/worker-schedule.model
         @if (brushMode === 'paint') {
           <form [formGroup]="scheduleForm" class="brush-form-container">
             <div class="quick-templates">
-              <span class="templates-label">Plantillas:</span>
-              <button type="button" class="btn-template" (click)="applyTemplate('morning')">[M] Mañana (9:00 - 15:00)</button>
-              <button type="button" class="btn-template" (click)="applyTemplate('afternoon')">[T] Tarde (15:00 - 21:00)</button>
-              <button type="button" class="btn-template" (click)="applyTemplate('full')">[P] Partido (10:00 - 21:00 / Desc. 14:00 - 17:00)</button>
-              <button type="button" class="btn-template btn-clear" (click)="applyTemplate('clear')">Limpiar</button>
+              <button type="button" class="btn-template btn-clear" (click)="applyTemplate('clear')">Limpiar Pincel</button>
             </div>
 
             <div class="brush-inputs">
               <div class="input-inline">
                 <label>Jornada:</label>
-                <input type="time" formControlName="horaInicio" class="form-control-inline" />
+                <input type="time" step="60" formControlName="horaInicio" class="form-control-inline" />
                 <span>a</span>
-                <input type="time" formControlName="horaFin" class="form-control-inline" />
+                <input type="time" step="60" formControlName="horaFin" class="form-control-inline" />
               </div>
               <div class="input-inline">
                 <label>Descanso:</label>
-                <input type="time" formControlName="breakStartTime" class="form-control-inline" />
+                <input type="time" step="60" formControlName="breakStartTime" class="form-control-inline" />
                 <span>a</span>
-                <input type="time" formControlName="breakEndTime" class="form-control-inline" />
+                <input type="time" step="60" formControlName="breakEndTime" class="form-control-inline" />
               </div>
             </div>
             
@@ -580,28 +576,7 @@ export class WeeklyQuadrantComponent implements OnInit {
 
   applyTemplate(type: string): void {
     this.scheduleForm.enable();
-    if (type === 'morning') {
-      this.scheduleForm.patchValue({
-        horaInicio: '09:00',
-        horaFin: '15:00',
-        breakStartTime: '',
-        breakEndTime: ''
-      });
-    } else if (type === 'afternoon') {
-      this.scheduleForm.patchValue({
-        horaInicio: '15:00',
-        horaFin: '21:00',
-        breakStartTime: '',
-        breakEndTime: ''
-      });
-    } else if (type === 'full') {
-      this.scheduleForm.patchValue({
-        horaInicio: '10:00',
-        horaFin: '21:00',
-        breakStartTime: '14:00',
-        breakEndTime: '17:00'
-      });
-    } else if (type === 'clear') {
+    if (type === 'clear') {
       this.scheduleForm.patchValue({
         horaInicio: '',
         horaFin: '',
