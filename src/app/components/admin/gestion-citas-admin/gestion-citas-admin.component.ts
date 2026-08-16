@@ -61,7 +61,8 @@ interface TimeSlot {
         <div class="grid-header">
           <h3>Horario de {{ getSelectedEmployeeName() }} — Vista {{ currentView | uppercase }}</h3>
           <span class="legend-badge badge-green">Disponible (Verde)</span>
-          <span class="legend-badge badge-red">Ocupado / No Disponible (Rojo)</span>
+          <span class="legend-badge badge-yellow">Cita Reservada (Amarillo)</span>
+          <span class="legend-badge badge-red">No Disponible (Rojo)</span>
         </div>
 
         <!-- Vista Diaria (Cuadrícula Unificada y Continua) -->
@@ -85,34 +86,33 @@ interface TimeSlot {
           </div>
         </div>
 
-        <!-- Vista Rango (Semana / Mes) -->
-        <div class="range-grid-container" *ngIf="currentView !== 'dia'">
-          @for (day of rangeDays; track day.dateStr) {
-            <div class="day-column glass-panel">
-              <div class="day-column-header">
-                <h4>{{ day.label }}</h4>
-                <p class="subtitle">{{ day.dateStr | date:'dd/MM' }}</p>
-              </div>
-              <div class="day-column-slots">
-                @for (slot of rangeAvailability[day.dateStr]; track slot.horaInicio) {
-                  <div 
-                    [class]="getSlotClass(slot)" 
-                    (click)="onSlotClick(slot)"
-                    [title]="getSlotTooltip(slot)"
-                  >
-                    <div class="slot-time">{{ slot.horaInicio.substring(0, 5) }} - {{ slot.horaFin.substring(0, 5) }}</div>
-                    <div class="slot-status-text">{{ getSlotStatusText(slot) }}</div>
-                    <div class="slot-details" *ngIf="getSlotAppointment(slot) as app">
-                      <span class="slot-client" *ngIf="!isBlockedService(app.servicio)">👤 {{ app.cliente.nombre }}</span>
-                      <span class="slot-service">💇‍♀️ {{ app.servicio.nombre }}</span>
+        <!-- Vista Rango (Semana / Mes como Calendario) -->
+        <div [class]="currentView === 'mes' ? 'range-grid-container calendar-mesh' : 'range-grid-container'" *ngIf="currentView !== 'dia'">
+          @for (day of rangeDays; track day.dateStr || $index) {
+            @if (day.isEmpty) {
+              <div class="day-column glass-panel empty-day"></div>
+            } @else {
+              <div class="day-column glass-panel">
+                <div class="day-column-header">
+                  <h4>{{ day.label }}</h4>
+                  <p class="subtitle">{{ day.dateStr | date:'dd/MM' }}</p>
+                </div>
+                <div class="day-column-slots compact-slots">
+                  @for (slot of rangeAvailability[day.dateStr]; track slot.horaInicio) {
+                    <div 
+                      [class]="getSlotClass(slot) + ' slot-pill'" 
+                      (click)="onSlotClick(slot)"
+                      [title]="getSlotTooltip(slot)"
+                    >
+                      <div class="slot-time">{{ slot.horaInicio.substring(0, 5) }}</div>
                     </div>
-                  </div>
-                }
-                @if (!rangeAvailability[day.dateStr] || rangeAvailability[day.dateStr].length === 0) {
-                  <p class="empty-text">Sin turnos</p>
-                }
+                  }
+                  @if (!rangeAvailability[day.dateStr] || rangeAvailability[day.dateStr].length === 0) {
+                    <p class="empty-text">Sin turnos</p>
+                  }
+                </div>
               </div>
-            </div>
+            }
           }
         </div>
       </div>
@@ -348,6 +348,7 @@ interface TimeSlot {
       font-weight: 500;
     }
     .badge-green { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .badge-yellow { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
     .badge-red { background: rgba(239, 68, 68, 0.2); color: #f87171; }
 
     .schedule-section h4 {
@@ -426,6 +427,16 @@ interface TimeSlot {
       border-color: #f87171;
     }
 
+    .slot-reserved {
+      background: rgba(245, 158, 11, 0.04);
+      border-color: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+    }
+    .slot-reserved:hover {
+      background: rgba(245, 158, 11, 0.08);
+      border-color: #fbbf24;
+    }
+
     /* Placeholder */
     .placeholder-panel {
       padding: 3rem;
@@ -478,6 +489,32 @@ interface TimeSlot {
       font-style: italic;
       font-size: 0.9rem;
       margin-top: 1rem;
+    }
+
+    /* Pill style for Semana/Mes */
+    .slot-pill {
+      min-height: auto !important;
+      padding: 0.35rem 0.5rem !important;
+      font-size: 0.8rem;
+      text-align: center;
+      justify-content: center;
+      align-items: center;
+    }
+    .slot-pill .slot-time {
+      margin: 0;
+      font-size: 0.8rem;
+    }
+    .calendar-mesh {
+      display: grid !important;
+      grid-template-columns: repeat(7, 1fr) !important;
+      flex-wrap: wrap;
+      gap: 1rem !important;
+    }
+    .empty-day {
+      background: transparent !important;
+      border: 1px dashed rgba(255, 255, 255, 0.05) !important;
+      pointer-events: none;
+      min-height: 150px;
     }
 
     /* Modales */
@@ -707,14 +744,16 @@ export class GestionCitasAdminComponent implements OnInit {
       });
     } else {
       this.calculateRangeDays();
-      const startDate = this.rangeDays[0].dateStr;
+      const startDate = this.rangeDays.find(d => !d.isEmpty)?.dateStr;
       const endDate = this.rangeDays[this.rangeDays.length - 1].dateStr;
-      this.appointmentService.getAdminAvailability(this.selectedEmployeeId, undefined, startDate, endDate).subscribe({
-        next: (data: { [key: string]: any[] }) => {
-          this.rangeAvailability = data;
-        },
-        error: (err: any) => console.error('Error al cargar disponibilidad de rango:', err)
-      });
+      if (startDate && endDate) {
+        this.appointmentService.getAdminAvailability(this.selectedEmployeeId, undefined, startDate, endDate).subscribe({
+          next: (data: { [key: string]: any[] }) => {
+            this.rangeAvailability = data;
+          },
+          error: (err: any) => console.error('Error al cargar disponibilidad de rango:', err)
+        });
+      }
     }
   }
 
