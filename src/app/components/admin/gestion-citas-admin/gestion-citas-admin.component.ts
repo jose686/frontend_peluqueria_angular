@@ -92,7 +92,8 @@ interface TimeSlot {
             @if (day.isEmpty) {
               <div class="day-column glass-panel empty-day"></div>
             } @else {
-              <div class="day-column glass-panel">
+              <!-- Vista Semana -->
+              <div class="day-column glass-panel" *ngIf="currentView === 'semana'">
                 <div class="day-column-header">
                   <h4>{{ day.label }}</h4>
                   <p class="subtitle">{{ day.dateStr | date:'dd/MM' }}</p>
@@ -110,6 +111,40 @@ interface TimeSlot {
                   @if (!rangeAvailability[day.dateStr] || rangeAvailability[day.dateStr].length === 0) {
                     <p class="empty-text">Sin turnos</p>
                   }
+                </div>
+              </div>
+
+              <!-- Vista Mes (Calendario Limpio con Popover y Click) -->
+              <div class="day-column glass-panel month-day-cell" *ngIf="currentView === 'mes'" (click)="selectMonthDay(day)">
+                <div class="day-column-header">
+                  <h4>{{ day.label.split(' - ')[0] }}</h4>
+                  <p class="subtitle">{{ day.label.split(' - ')[1] }}</p>
+                </div>
+                
+                <!-- Resumen de disponibilidad del día -->
+                <div class="month-day-summary" *ngIf="getDaySummary(day.dateStr) as summary">
+                  <span [class]="'badge ' + summary.class">{{ summary.label }}</span>
+                </div>
+
+                <!-- Popover flotante en Hover -->
+                <div class="day-popover glass-panel fade-in-el" (click)="$event.stopPropagation()">
+                  <div class="popover-header">
+                    <h5>{{ day.dateStr | date:'EEEE, d MMMM' }}</h5>
+                  </div>
+                  <div class="popover-slots-list">
+                    @for (slot of rangeAvailability[day.dateStr]; track slot.horaInicio) {
+                      <div class="popover-slot-row" [class]="getSlotClass(slot)">
+                        <span class="popover-slot-time">{{ slot.horaInicio.substring(0, 5) }} - {{ slot.horaFin.substring(0, 5) }}</span>
+                        <span class="popover-slot-text">{{ getSlotStatusText(slot) }}</span>
+                        <div class="popover-slot-details" *ngIf="getSlotAppointment(slot) as app">
+                          <small>👤 {{ app.cliente?.nombre }} ({{ app.servicio?.nombre }})</small>
+                        </div>
+                      </div>
+                    }
+                    @if (!rangeAvailability[day.dateStr] || rangeAvailability[day.dateStr].length === 0) {
+                      <p class="empty-text">Sin turnos asignados</p>
+                    }
+                  </div>
                 </div>
               </div>
             }
@@ -517,6 +552,75 @@ interface TimeSlot {
       min-height: 150px;
     }
 
+    /* Month Day Cell & Popover */
+    .month-day-cell {
+      position: relative;
+      min-height: 120px;
+      justify-content: flex-start !important;
+      align-items: stretch !important;
+      cursor: pointer;
+    }
+    .month-day-summary {
+      margin-top: auto;
+      text-align: center;
+    }
+    .day-popover {
+      display: none;
+      position: absolute;
+      bottom: 105%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      width: 280px;
+      max-height: 350px;
+      overflow-y: auto;
+      background: rgba(18, 18, 20, 0.95);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-md);
+      padding: 1rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+      text-align: left;
+      cursor: default;
+    }
+    .month-day-cell:hover .day-popover {
+      display: block;
+    }
+    .popover-header h5 {
+      margin: 0 0 0.75rem 0;
+      font-size: 0.9rem;
+      color: var(--accent-gold);
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.25rem;
+      text-transform: capitalize;
+    }
+    .popover-slots-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .popover-slot-row {
+      padding: 0.35rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid transparent;
+    }
+    .popover-slot-time {
+      font-weight: 700;
+    }
+    .popover-slot-text {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+    .popover-slot-details {
+      margin-top: 0.25rem;
+      border-top: 1px dashed rgba(255,255,255,0.05);
+      padding-top: 0.25rem;
+    }
+
     /* Modales */
     .modal-backdrop {
       position: fixed;
@@ -759,6 +863,30 @@ export class GestionCitasAdminComponent implements OnInit {
 
   changeView(view: 'dia' | 'semana' | 'mes'): void {
     this.currentView = view;
+    this.loadAppointments();
+  }
+
+  getDaySummary(dateStr: string): any {
+    const slots = this.rangeAvailability[dateStr];
+    if (!slots || slots.length === 0) {
+      return { status: 'no-shift', label: 'Sin turno', class: 'badge-red' };
+    }
+    const availableCount = slots.filter(s => s.disponible).length;
+    const appointmentCount = slots.filter(s => s.appointment).length;
+    
+    if (availableCount > 0) {
+      return { status: 'available', label: `${availableCount} libres`, class: 'badge-green' };
+    } else if (appointmentCount > 0) {
+      return { status: 'reserved', label: `${appointmentCount} citas`, class: 'badge-yellow' };
+    } else {
+      return { status: 'occupied', label: 'Completo', class: 'badge-red' };
+    }
+  }
+
+  selectMonthDay(day: any): void {
+    if (day.isEmpty) return;
+    this.selectedDate = day.dateStr;
+    this.currentView = 'dia';
     this.loadAppointments();
   }
 
