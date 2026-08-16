@@ -589,30 +589,11 @@ export class GestionCitasAdminComponent implements OnInit {
   bloqueoService: CatalogItem | null = null;
 
   // Slots de horarios
-  morningSlots: TimeSlot[] = [
-    { horaInicio: '09:00', horaFin: '09:30', isCommercial: true },
-    { horaInicio: '09:30', horaFin: '10:00', isCommercial: true },
-    { horaInicio: '10:00', horaFin: '10:30', isCommercial: true },
-    { horaInicio: '10:30', horaFin: '11:00', isCommercial: true },
-    { horaInicio: '11:00', horaFin: '11:30', isCommercial: true },
-    { horaInicio: '11:30', horaFin: '12:00', isCommercial: true },
-    { horaInicio: '12:00', horaFin: '12:30', isCommercial: true },
-    { horaInicio: '12:30', horaFin: '13:00', isCommercial: true },
-    { horaInicio: '13:00', horaFin: '13:30', isCommercial: true },
-    { horaInicio: '13:30', horaFin: '14:00', isCommercial: true }
-  ];
-
-  afternoonSlots: TimeSlot[] = [
-    { horaInicio: '17:00', horaFin: '17:30', isCommercial: true },
-    { horaInicio: '17:30', horaFin: '18:00', isCommercial: true },
-    { horaInicio: '18:00', horaFin: '18:30', isCommercial: true },
-    { horaInicio: '18:30', horaFin: '19:00', isCommercial: true },
-    { horaInicio: '19:00', horaFin: '19:30', isCommercial: true },
-    { horaInicio: '19:30', horaFin: '20:00', isCommercial: true }
-  ];
+  morningSlots: any[] = [];
+  afternoonSlots: any[] = [];
 
   // Control de Modales y Estados Activos
-  activeSlot: TimeSlot | null = null;
+  activeSlot: any = null;
   selectedApp: any = null;
 
   showFreeSlotModal = false;
@@ -673,17 +654,18 @@ export class GestionCitasAdminComponent implements OnInit {
   loadAppointments(): void {
     if (!this.selectedEmployeeId) return;
 
-    this.appointmentService.getAppointments().subscribe({
+    this.appointmentService.getAdminAvailability(this.selectedEmployeeId, this.selectedDate).subscribe({
       next: (data: any[]) => {
-        // Filtrar por empleado seleccionado y fecha del día
-        this.appointments = data.filter((app: any) => {
-          const appDate = app.fechaHora.split('T')[0];
-          return appDate === this.selectedDate && 
-                 String(app.empleado?.id) === String(this.selectedEmployeeId) &&
-                 app.estado !== 'CANCELADA';
-        });
+        // Formatear hora de 09:00:00 a 09:00
+        const formattedData = data.map(slot => ({
+          ...slot,
+          horaInicio: slot.horaInicio.substring(0, 5),
+          horaFin: slot.horaFin.substring(0, 5)
+        }));
+        this.morningSlots = formattedData.filter(slot => slot.horaFin <= '14:00');
+        this.afternoonSlots = formattedData.filter(slot => slot.horaInicio >= '17:00');
       },
-      error: (err: any) => console.error('Error al cargar citas:', err)
+      error: (err: any) => console.error('Error al cargar disponibilidad:', err)
     });
   }
 
@@ -703,65 +685,46 @@ export class GestionCitasAdminComponent implements OnInit {
     return emp ? `${emp.nombre} ${emp.apellidos || ''}` : '';
   }
 
-  // Comprobar solapamiento de cita con un slot
-  getSlotAppointment(slot: TimeSlot): any {
-    const slotStart = this.parseTimeToMinutes(slot.horaInicio);
-    const slotEnd = this.parseTimeToMinutes(slot.horaFin);
-
-    for (const app of this.appointments) {
-      const appTimeStr = app.fechaHora.split('T')[1].substring(0, 5);
-      const appStart = this.parseTimeToMinutes(appTimeStr);
-      const duration = app.servicio.duracionMinutos || 30;
-      const appEnd = appStart + duration;
-
-      // Solapamiento
-      if (appStart < slotEnd && appEnd > slotStart) {
-        return app;
-      }
-    }
-    return null;
+  getSlotAppointment(slot: any): any {
+    return slot.appointment;
   }
 
   isBlockedService(service: any): boolean {
     return service?.slug === 'bloqueo-horario' || service?.nombre?.toLowerCase().includes('bloqueo');
   }
 
-  getSlotClass(slot: TimeSlot): string {
-    const app = this.getSlotAppointment(slot);
-    if (!app) {
+  getSlotClass(slot: any): string {
+    if (slot.disponible) {
       return 'slot-card slot-free';
-    }
-    if (this.isBlockedService(app.servicio)) {
-      return 'slot-card slot-blocked';
     }
     return 'slot-card slot-occupied';
   }
 
-  getSlotStatusText(slot: TimeSlot): string {
-    const app = this.getSlotAppointment(slot);
-    if (!app) return 'Disponible';
-    if (this.isBlockedService(app.servicio)) return 'Bloqueado / Libranza';
-    return `Reservado (${app.estado})`;
+  getSlotStatusText(slot: any): string {
+    const app = slot.appointment;
+    if (app) {
+      return `Reservado (${app.estado})`;
+    }
+    return slot.disponible ? 'Disponible' : 'No disponible';
   }
 
-  getSlotTooltip(slot: TimeSlot): string {
-    const app = this.getSlotAppointment(slot);
-    if (!app) return 'Haz clic para bloquear o reservar';
-    if (this.isBlockedService(app.servicio)) return 'Bloqueo administrativo. Haz clic para liberar.';
-    return `Cliente: ${app.cliente.nombre}. Servicio: ${app.servicio.nombre}. Notas: ${app.notas || 'Ninguna'}`;
+  getSlotTooltip(slot: any): string {
+    const app = slot.appointment;
+    if (app) {
+      return `Cliente: ${app.cliente?.nombre}. Servicio: ${app.servicio?.nombre}. Estado: ${app.estado}`;
+    }
+    return slot.disponible ? 'Haz clic para reservar' : 'Fuera de jornada / Descanso';
   }
 
-  onSlotClick(slot: TimeSlot): void {
-    const app = this.getSlotAppointment(slot);
+  onSlotClick(slot: any): void {
+    const app = slot.appointment;
     this.activeSlot = slot;
 
-    if (!app) {
-      // Slot libre
+    if (slot.disponible) {
       this.isCreatingManualBooking = false;
       this.newBooking = { clienteId: null, servicioId: null, notas: '' };
       this.showFreeSlotModal = true;
-    } else {
-      // Slot ocupado
+    } else if (app) {
       this.selectedApp = app;
       if (this.isBlockedService(app.servicio)) {
         this.showBlockedModal = true;

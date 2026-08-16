@@ -48,4 +48,11 @@ export class AppointmentService {
   cancelAppointment(id: string): Observable<AppointmentDto> {
     return this.http.patch<AppointmentDto>(`${this.apiUrl}/${id}/cancel`, {});
   }
+
+  getAdminAvailability(employeeId: string, date: string): Observable<any[]> {
+    const params = new HttpParams()
+      .set('employeeId', employeeId)
+      .set('date', date);
+    return this.http.get<any[]>(`${environment.apiUrl}/admin/availability`, { params });
+  }
 }

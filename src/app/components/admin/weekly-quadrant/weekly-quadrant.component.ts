@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy, ChangeDetectorRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
 import { WorkerService } from '../../../services/worker.service';
@@ -20,9 +20,18 @@ import { ShiftDto, ShiftRequestDto } from '../../../models/worker-schedule.model
         </div>
         <!-- Navegador de Semanas -->
         <div class="navigator">
+          <button 
+            type="button" 
+            class="btn btn-secondary btn-undo" 
+            [disabled]="historyStack.length === 0" 
+            (click)="undo()"
+          >
+            ↩️ Deshacer (Ctrl+Z)
+          </button>
           <button class="btn btn-secondary" (click)="navigateWeek(-7)">◀ Semana Anterior</button>
           <span class="week-label">Del {{ weekDays[0] | date:'dd/MM' }} al {{ weekDays[6] | date:'dd/MM/yyyy' }}</span>
           <button class="btn btn-secondary" (click)="navigateWeek(7)">Semana Siguiente ▶</button>
+          <button type="button" class="btn btn-secondary btn-copy-week" (click)="copyPreviousWeek()">📋 Copiar Anterior</button>
         </div>
       </div>
 
@@ -95,6 +104,8 @@ import { ShiftDto, ShiftRequestDto } from '../../../models/worker-schedule.model
         <div class="quadrant-grid">
           <!-- Esquina superior izquierda -->
           <div class="grid-header-cell corner-cell">Profesional</div>
+          <!-- Nueva columna: Total Horas -->
+          <div class="grid-header-cell hours-header-cell">Total Horas</div>
           <!-- Encabezados de días -->
           @for (day of weekDays; track day.getTime()) {
             <div class="grid-header-cell day-cell">
@@ -107,8 +118,31 @@ import { ShiftDto, ShiftRequestDto } from '../../../models/worker-schedule.model
           @for (worker of workers; track worker.id) {
             <!-- Nombre del profesional -->
             <div class="worker-name-cell">
-              <span class="worker-title">{{ worker.nombre }}</span>
-              <span class="worker-spec">{{ worker.especialidad }}</span>
+              <div class="worker-header-row">
+                <div>
+                  <span class="worker-title">{{ worker.nombre }}</span>
+                  <span class="worker-spec" style="display: block;">{{ worker.especialidad }}</span>
+                </div>
+                
+                @if (swappingSourceWorker === null) {
+                  <button type="button" class="btn-icon-action" title="Intercambiar horario semanal" (click)="startRowSwapping(worker)">
+                    🔄
+                  </button>
+                } @else if (swappingSourceWorker.id === worker.id) {
+                  <button type="button" class="btn-icon-action active" title="Cancelar intercambio" (click)="cancelRowSwapping()">
+                    ❌
+                  </button>
+                } @else {
+                  <button type="button" class="btn-icon-action paste" title="Intercambiar con este profesional" (click)="executeRowSwap(worker)">
+                    🔄 Intercambiar
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Nueva celda: Total Horas -->
+            <div class="worker-hours-cell">
+              <span class="total-hours-badge">{{ calculateWeeklyHours(worker.id) }}</span>
             </div>
             
             <!-- Celdas de días -->
@@ -117,6 +151,7 @@ import { ShiftDto, ShiftRequestDto } from '../../../models/worker-schedule.model
                 <div 
                   [class]="getCellClass(shift)" 
                   (click)="onCellClick(worker, day, shift)"
+                  (contextmenu)="onCellRightClick($event, shift)"
                 >
                   <div class="shift-time-block">
                     {{ formatTime(shift.horaInicio) }} - {{ formatTime(shift.horaFin) }}
@@ -131,6 +166,7 @@ import { ShiftDto, ShiftRequestDto } from '../../../models/worker-schedule.model
                 <div 
                   [class]="getCellClass(undefined)" 
                   (click)="onCellClick(worker, day, undefined)"
+                  (contextmenu)="onCellRightClick($event, undefined)"
                 >
                   <span class="free-label">Libre</span>
                 </div>
@@ -181,8 +217,30 @@ import { ShiftDto, ShiftRequestDto } from '../../../models/worker-schedule.model
     }
     .quadrant-grid {
       display: grid;
-      grid-template-columns: 200px repeat(7, minmax(130px, 1fr));
+      grid-template-columns: 200px 100px repeat(7, minmax(130px, 1fr));
       background: rgba(255, 255, 255, 0.02);
+    }
+    .hours-header-cell {
+      font-size: 0.9rem;
+      color: var(--accent-gold);
+    }
+    .worker-hours-cell {
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.15);
+      border-bottom: 1px solid var(--border-color);
+      border-right: 2px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .total-hours-badge {
+      font-weight: 700;
+      color: var(--accent-gold);
+      background: rgba(212, 175, 55, 0.1);
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      font-size: 0.85rem;
     }
     .grid-header-cell {
       background: rgba(0, 0, 0, 0.4);
@@ -427,6 +485,59 @@ import { ShiftDto, ShiftRequestDto } from '../../../models/worker-schedule.model
       font-size: 0.8rem;
       display: block;
     }
+    .btn-copy-week {
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
+      margin-left: 0.5rem;
+    }
+    .btn-copy-week:hover {
+      background: var(--accent-gold);
+      color: #000;
+    }
+    .btn-undo:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      border-color: rgba(255, 255, 255, 0.1);
+      color: var(--text-secondary);
+    }
+    .worker-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+    .btn-icon-action {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .btn-icon-action:hover {
+      background: var(--accent-gold);
+      color: #000;
+      border-color: var(--accent-gold);
+    }
+    .btn-icon-action.active {
+      background: rgba(220, 38, 38, 0.2);
+      border-color: #ef4444;
+      color: #fff;
+    }
+    .btn-icon-action.paste {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: #10b981;
+      color: #34d399;
+    }
+    .btn-icon-action.paste:hover {
+      background: #10b981;
+      color: #fff;
+    }
   `]
 })
 export class WeeklyQuadrantComponent implements OnInit {
@@ -439,6 +550,8 @@ export class WeeklyQuadrantComponent implements OnInit {
   shifts: ShiftDto[] = [];
   weekDays: Date[] = [];
   currentReferenceDate: Date = new Date();
+  swappingSourceWorker: WorkerDto | null = null;
+  historyStack: ShiftDto[][] = [];
 
   // Pincel State
   brushMode: 'paint' | 'erase' = 'paint';
@@ -476,6 +589,7 @@ export class WeeklyQuadrantComponent implements OnInit {
     this.scheduleService.getShiftsByWeek(formattedStart).subscribe({
       next: (data) => {
         this.shifts = data;
+        this.historyStack = [];
         this.cdr.markForCheck();
       },
       error: () => {
@@ -512,7 +626,7 @@ export class WeeklyQuadrantComponent implements OnInit {
 
   getCellClass(shift: ShiftDto | undefined): string {
     if (!shift) return 'grid-day-cell cell-free';
-    
+
     const startHour = parseInt(shift.horaInicio.split(':')[0], 10);
     if (startHour < 14) {
       return 'grid-day-cell cell-morning';
@@ -530,6 +644,7 @@ export class WeeklyQuadrantComponent implements OnInit {
     if (this.brushMode === 'erase') {
       if (shift && shift.id) {
         this.submitting = true;
+        this.saveHistoryState();
         this.scheduleService.deleteShift(shift.id).subscribe({
           next: () => {
             this.submitting = false;
@@ -538,7 +653,12 @@ export class WeeklyQuadrantComponent implements OnInit {
           },
           error: (err) => {
             this.submitting = false;
-            console.error(err.error?.error || 'Error al eliminar el turno.');
+            // Si el backend indica que ya no existe (por haber sido borrado), limpiamos localmente
+            if (err.status === 400 || err.error?.error === 'Turno no encontrado') {
+              this.shifts = this.shifts.filter(s => s.id !== shift.id);
+            } else {
+              console.error(err.error?.error || 'Error al eliminar el turno.');
+            }
             this.cdr.markForCheck();
           }
         });
@@ -549,6 +669,7 @@ export class WeeklyQuadrantComponent implements OnInit {
       }
 
       this.submitting = true;
+      this.saveHistoryState();
       const formVal = this.scheduleForm.value;
       const request: ShiftRequestDto = {
         fecha: this.formatDate(date),
@@ -561,7 +682,7 @@ export class WeeklyQuadrantComponent implements OnInit {
       this.scheduleService.saveShift(worker.id, request).subscribe({
         next: (savedShift) => {
           this.submitting = false;
-          
+
           const index = this.shifts.findIndex(s => s.workerId === worker.id && s.fecha === request.fecha);
           if (index !== -1) {
             this.shifts[index] = savedShift;
@@ -603,11 +724,136 @@ export class WeeklyQuadrantComponent implements OnInit {
     return time.substring(0, 5); // "09:00:00" -> "09:00"
   }
 
+  calculateWeeklyHours(workerId: string): string {
+    const activeWeekDates = this.weekDays.map(d => this.formatDate(d));
+    const uniqueShiftsByDate = new Map<string, ShiftDto>();
+
+    for (const shift of this.shifts) {
+      if (shift.workerId === workerId && activeWeekDates.includes(shift.fecha)) {
+        uniqueShiftsByDate.set(shift.fecha, shift);
+      }
+    }
+
+    let totalMinutes = 0;
+    for (const shift of uniqueShiftsByDate.values()) {
+      if (!shift.horaInicio || !shift.horaFin) continue;
+      const shiftMinutes = this.parseTimeToMinutes(shift.horaFin) - this.parseTimeToMinutes(shift.horaInicio);
+      let breakMinutes = 0;
+      if (shift.breakStartTime && shift.breakEndTime) {
+        breakMinutes = this.parseTimeToMinutes(shift.breakEndTime) - this.parseTimeToMinutes(shift.breakStartTime);
+      }
+      totalMinutes += Math.max(0, shiftMinutes - breakMinutes);
+    }
+    const totalHours = totalMinutes / 60;
+    return Number.isInteger(totalHours) ? `${totalHours}h` : `${totalHours.toFixed(1)} h`;
+  }
+
+  onCellRightClick(event: MouseEvent, shift: ShiftDto | undefined): void {
+    event.preventDefault();
+    if (shift) {
+      this.scheduleForm.patchValue({
+        horaInicio: this.formatTime(shift.horaInicio),
+        horaFin: this.formatTime(shift.horaFin),
+        breakStartTime: this.formatTime(shift.breakStartTime) || '',
+        breakEndTime: this.formatTime(shift.breakEndTime) || ''
+      });
+      this.brushMode = 'paint';
+      this.cdr.markForCheck();
+    }
+  }
+
+  private parseTimeToMinutes(timeStr: string): number {
+    if (!timeStr) return 0;
+    const parts = timeStr.split(':');
+    const hours = parseInt(parts[0], 10) || 0;
+    const minutes = parseInt(parts[1], 10) || 0;
+    return hours * 60 + minutes;
+  }
+
   private formatDate(date: Date): string {
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
+  }
+
+  copyPreviousWeek(): void {
+    const monday = this.weekDays[0];
+    const prevMonday = new Date(monday);
+    prevMonday.setDate(monday.getDate() - 7);
+    const fromStart = this.formatDate(prevMonday);
+    const toStart = this.formatDate(monday);
+
+    this.submitting = true;
+    this.saveHistoryState();
+    this.scheduleService.copyWeek(fromStart, toStart).subscribe({
+      next: () => {
+        this.submitting = false;
+        this.loadWeekShifts();
+      },
+      error: (err) => {
+        this.submitting = false;
+        console.error(err.error?.error || 'Error al copiar la semana anterior.');
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  startRowSwapping(worker: WorkerDto): void {
+    this.swappingSourceWorker = worker;
+    this.cdr.markForCheck();
+  }
+
+  cancelRowSwapping(): void {
+    this.swappingSourceWorker = null;
+    this.cdr.markForCheck();
+  }
+
+  executeRowSwap(targetWorker: WorkerDto): void {
+    if (!this.swappingSourceWorker) return;
+    
+    this.saveHistoryState();
+    
+    const workerAId = this.swappingSourceWorker.id;
+    const workerBId = targetWorker.id;
+    const activeWeekDates = this.weekDays.map(d => this.formatDate(d));
+
+    this.shifts = this.shifts.map(shift => {
+      if (activeWeekDates.includes(shift.fecha)) {
+        if (shift.workerId === workerAId) {
+          return { ...shift, workerId: workerBId };
+        } else if (shift.workerId === workerBId) {
+          return { ...shift, workerId: workerAId };
+        }
+      }
+      return shift;
+    });
+
+    this.swappingSourceWorker = null;
+    this.cdr.markForCheck();
+  }
+
+  saveHistoryState(): void {
+    this.historyStack.push(this.shifts.map(s => ({ ...s })));
+  }
+
+  undo(): void {
+    if (this.historyStack.length === 0) return;
+    const previousState = this.historyStack.pop();
+    if (previousState) {
+      // Crear copias frescas (inmutabilidad) para romper bloqueos de referencia
+      this.shifts = previousState.map(s => ({ ...s }));
+      this.cdr.markForCheck();
+      this.cdr.detectChanges(); // Forzar re-renderizado
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      this.undo();
+    }
   }
 
   private scheduleTimeValidator(control: AbstractControl): ValidationErrors | null {

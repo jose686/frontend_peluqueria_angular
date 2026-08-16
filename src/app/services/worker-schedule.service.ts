@@ -26,4 +26,12 @@ export class WorkerScheduleService {
   deleteShift(id: string): Observable<{ message: string }> {
     return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
   }
+
+  copyWeek(fromStart: string, toStart: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiUrl}/copy-week?fromStart=${fromStart}&toStart=${toStart}`, {});
+  }
+
+  copyWorkerShifts(fromWorkerId: string, toWorkerId: string, startDate: string, endDate: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiUrl}/copy-worker-shifts?fromWorkerId=${fromWorkerId}&toWorkerId=${toWorkerId}&startDate=${startDate}&endDate=${endDate}`, {});
+  }
 }
