@@ -40,9 +40,18 @@ interface TimeSlot {
         <div class="filter-group date-navigator">
           <label class="form-label">Fecha de Gestión</label>
           <div class="navigator-controls">
-            <button class="btn btn-secondary btn-nav" (click)="navigateDay(-1)">◀</button>
+            <button type="button" class="btn btn-secondary btn-nav" (click)="navigatePeriod(-1)">◀</button>
             <input type="date" class="form-control date-input" [(ngModel)]="selectedDate" (change)="onFilterChange()"/>
-            <button class="btn btn-secondary btn-nav" (click)="navigateDay(1)">▶</button>
+            <button type="button" class="btn btn-secondary btn-nav" (click)="navigatePeriod(1)">▶</button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="form-label">Vista</label>
+          <div class="view-toggle-buttons">
+            <button type="button" class="btn" [class.btn-primary]="currentView === 'dia'" [class.btn-secondary]="currentView !== 'dia'" (click)="changeView('dia')">Día</button>
+            <button type="button" class="btn" [class.btn-primary]="currentView === 'semana'" [class.btn-secondary]="currentView !== 'semana'" (click)="changeView('semana')">Semana</button>
+            <button type="button" class="btn" [class.btn-primary]="currentView === 'mes'" [class.btn-secondary]="currentView !== 'mes'" (click)="changeView('mes')">Mes</button>
           </div>
         </div>
       </div>
@@ -50,17 +59,16 @@ interface TimeSlot {
       <!-- Grid Visual de Horarios -->
       <div class="grid-container" *ngIf="selectedEmployeeId; else selectEmployeePlaceholder">
         <div class="grid-header">
-          <h3>Horario de {{ getSelectedEmployeeName() }} — 📅 {{ selectedDate | date:'dd/MM/yyyy' }}</h3>
+          <h3>Horario de {{ getSelectedEmployeeName() }} — Vista {{ currentView | uppercase }}</h3>
           <span class="legend-badge badge-green">Disponible (Verde)</span>
-          <span class="legend-badge badge-red">Ocupado (Rojo)</span>
-          <span class="legend-badge badge-gray">Bloqueado / Descanso (Gris)</span>
+          <span class="legend-badge badge-red">Ocupado / No Disponible (Rojo)</span>
         </div>
 
-        <!-- Bloque Mañana -->
-        <div class="schedule-section">
-          <h4>Jornada de Mañana (09:00 - 14:00)</h4>
+        <!-- Vista Diaria (Cuadrícula Unificada y Continua) -->
+        <div class="schedule-section" *ngIf="currentView === 'dia'">
+          <h4>Horario del Día: {{ selectedDate | date:'dd/MM/yyyy' }}</h4>
           <div class="slots-grid">
-            @for (slot of morningSlots; track slot.horaInicio) {
+            @for (slot of dailySlots; track slot.horaInicio) {
               <div 
                 [class]="getSlotClass(slot)" 
                 (click)="onSlotClick(slot)"
@@ -77,30 +85,35 @@ interface TimeSlot {
           </div>
         </div>
 
-        <!-- Descanso Almuerzo -->
-        <div class="lunch-break glass-panel">
-          ☕ 14:00 - 17:00 — Intervalo de Cierre / Almuerzo
-        </div>
-
-        <!-- Bloque Tarde -->
-        <div class="schedule-section">
-          <h4>Jornada de Tarde (17:00 - 20:00)</h4>
-          <div class="slots-grid">
-            @for (slot of afternoonSlots; track slot.horaInicio) {
-              <div 
-                [class]="getSlotClass(slot)" 
-                (click)="onSlotClick(slot)"
-                [title]="getSlotTooltip(slot)"
-              >
-                <div class="slot-time">{{ slot.horaInicio }} - {{ slot.horaFin }}</div>
-                <div class="slot-status-text">{{ getSlotStatusText(slot) }}</div>
-                <div class="slot-details" *ngIf="getSlotAppointment(slot) as app">
-                  <span class="slot-client" *ngIf="!isBlockedService(app.servicio)">👤 {{ app.cliente.nombre }}</span>
-                  <span class="slot-service">💇‍♀️ {{ app.servicio.nombre }}</span>
-                </div>
+        <!-- Vista Rango (Semana / Mes) -->
+        <div class="range-grid-container" *ngIf="currentView !== 'dia'">
+          @for (day of rangeDays; track day.dateStr) {
+            <div class="day-column glass-panel">
+              <div class="day-column-header">
+                <h4>{{ day.label }}</h4>
+                <p class="subtitle">{{ day.dateStr | date:'dd/MM' }}</p>
               </div>
-            }
-          </div>
+              <div class="day-column-slots">
+                @for (slot of rangeAvailability[day.dateStr]; track slot.horaInicio) {
+                  <div 
+                    [class]="getSlotClass(slot)" 
+                    (click)="onSlotClick(slot)"
+                    [title]="getSlotTooltip(slot)"
+                  >
+                    <div class="slot-time">{{ slot.horaInicio.substring(0, 5) }} - {{ slot.horaFin.substring(0, 5) }}</div>
+                    <div class="slot-status-text">{{ getSlotStatusText(slot) }}</div>
+                    <div class="slot-details" *ngIf="getSlotAppointment(slot) as app">
+                      <span class="slot-client" *ngIf="!isBlockedService(app.servicio)">👤 {{ app.cliente.nombre }}</span>
+                      <span class="slot-service">💇‍♀️ {{ app.servicio.nombre }}</span>
+                    </div>
+                  </div>
+                }
+                @if (!rangeAvailability[day.dateStr] || rangeAvailability[day.dateStr].length === 0) {
+                  <p class="empty-text">Sin turnos</p>
+                }
+              </div>
+            </div>
+          }
         </div>
       </div>
 
@@ -157,7 +170,7 @@ interface TimeSlot {
 
               <div class="form-group">
                 <label class="form-label" for="booking-notes">Notas / Comentarios</label>
-                <textarea id="booking-notes" class="form-control" rows="3" [(ngModel)]="newBooking.notas" placeholder="Ej: Reserva telefónica, alergia al tinte..."></textarea>
+                <textarea id="booking-notes" class="form-control" rows="3" [(ngModel)]="newBooking.notes" placeholder="Ej: Reserva telefónica, alergia al tinte..."></textarea>
               </div>
 
               <div class="form-actions">
@@ -199,9 +212,9 @@ interface TimeSlot {
                 <p>📅 {{ selectedApp.fechaHora | date:'EEEE, d MMMM yyyy, HH:mm':'':'es' }}</p>
               </div>
 
-              <div class="detail-section" *ngIf="selectedApp.notas">
+              <div class="detail-section" *ngIf="selectedApp.notes">
                 <h5>Notas del Administrador / Cliente</h5>
-                <p class="notes-box">{{ selectedApp.notas }}</p>
+                <p class="notes-box">{{ selectedApp.notes }}</p>
               </div>
 
               <div class="detail-section">
@@ -242,7 +255,7 @@ interface TimeSlot {
             <div class="blocked-info glass-panel" style="padding: 1rem; margin-bottom: 1.5rem; text-align: left;">
               <p>📍 <strong>Fecha:</strong> {{ selectedApp.fechaHora | date:'dd/MM/yyyy' }}</p>
               <p>⏰ <strong>Hora:</strong> {{ selectedApp.fechaHora | date:'HH:mm' }}</p>
-              <p *ngIf="selectedApp.notas">📝 <strong>Motivo:</strong> {{ selectedApp.notas }}</p>
+              <p *ngIf="selectedApp.notes">📝 <strong>Motivo:</strong> {{ selectedApp.notes }}</p>
             </div>
 
             <div style="display: flex; gap: 0.5rem; justify-content: center;">
@@ -273,7 +286,7 @@ interface TimeSlot {
     /* Barra de filtros */
     .filters-bar {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 1.5rem;
       padding: 1.5rem;
     }
@@ -297,6 +310,16 @@ interface TimeSlot {
     .date-input {
       flex: 1;
       text-align: center;
+    }
+    .view-toggle-buttons {
+      display: flex;
+      gap: 0.5rem;
+      height: 100%;
+      align-items: center;
+    }
+    .view-toggle-buttons button {
+      flex: 1;
+      padding: 0.75rem;
     }
 
     /* Grid y Calendario */
@@ -326,7 +349,6 @@ interface TimeSlot {
     }
     .badge-green { background: rgba(16, 185, 129, 0.2); color: #34d399; }
     .badge-red { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-    .badge-gray { background: rgba(255, 255, 255, 0.08); color: #9ca3af; }
 
     .schedule-section h4 {
       font-size: 1rem;
@@ -404,30 +426,58 @@ interface TimeSlot {
       border-color: #f87171;
     }
 
-    .slot-blocked {
-      background: rgba(255, 255, 255, 0.02);
-      border-color: rgba(255, 255, 255, 0.05);
-      color: var(--text-muted);
-    }
-    .slot-blocked:hover {
-      background: rgba(255, 255, 255, 0.04);
-      border-color: var(--text-secondary);
-    }
-
-    /* Descanso almuerzo */
-    .lunch-break {
-      text-align: center;
-      padding: 0.75rem;
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-      font-weight: 500;
-    }
-
     /* Placeholder */
     .placeholder-panel {
       padding: 3rem;
       text-align: center;
       color: var(--text-secondary);
+    }
+
+    /* Rango Semanal / Mensual */
+    .range-grid-container {
+      display: flex;
+      gap: 1.5rem;
+      overflow-x: auto;
+      padding-bottom: 1.5rem;
+      align-items: flex-start;
+    }
+    .day-column {
+      flex: 0 0 240px;
+      padding: 1.25rem;
+      background: rgba(18, 18, 20, 0.4);
+      border-radius: var(--border-radius-md);
+      border: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .day-column-header {
+      text-align: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.75rem;
+    }
+    .day-column-header h4 {
+      margin: 0;
+      color: var(--accent-gold);
+      font-size: 1.05rem;
+      text-transform: capitalize;
+    }
+    .day-column-header .subtitle {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+    }
+    .day-column-slots {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .empty-text {
+      text-align: center;
+      color: var(--text-muted);
+      font-style: italic;
+      font-size: 0.9rem;
+      margin-top: 1rem;
     }
 
     /* Modales */
@@ -564,12 +614,6 @@ interface TimeSlot {
     .btn-delete-app:hover {
       background: rgba(239, 68, 68, 0.1);
     }
-
-    @media (max-width: 768px) {
-      .filters-bar {
-        grid-template-columns: 1fr;
-      }
-    }
   `]
 })
 export class GestionCitasAdminComponent implements OnInit {
@@ -585,12 +629,13 @@ export class GestionCitasAdminComponent implements OnInit {
   // Listados cargados
   clients: User[] = [];
   activeServices: CatalogItem[] = [];
-  appointments: any[] = [];
   bloqueoService: CatalogItem | null = null;
 
-  // Slots de horarios
-  morningSlots: any[] = [];
-  afternoonSlots: any[] = [];
+  // Modos de visualización
+  currentView: 'dia' | 'semana' | 'mes' = 'dia';
+  dailySlots: any[] = [];
+  rangeDays: any[] = [];
+  rangeAvailability: { [date: string]: any[] } = {};
 
   // Control de Modales y Estados Activos
   activeSlot: any = null;
@@ -605,7 +650,7 @@ export class GestionCitasAdminComponent implements OnInit {
   newBooking = {
     clienteId: null as number | null,
     servicioId: null as number | null,
-    notas: ''
+    notes: ''
   };
 
   ngOnInit(): void {
@@ -618,7 +663,6 @@ export class GestionCitasAdminComponent implements OnInit {
     this.userService.getEmployees().subscribe({
       next: (data) => {
         this.employees = data;
-        // Seleccionar el primer empleado por defecto si hay alguno
         if (data.length > 0) {
           this.selectedEmployeeId = data[0].id!;
           this.loadAppointments();
@@ -638,13 +682,9 @@ export class GestionCitasAdminComponent implements OnInit {
   }
 
   loadServices(): void {
-    // Cargar todos los elementos del catálogo
     this.catalogService.getCatalogItems(true).subscribe({
       next: (data) => {
-        // Filtrar servicios activos para creación manual
         this.activeServices = data.filter(item => item.tipo === 'SERVICIO' && item.activo);
-        
-        // Buscar el servicio especial de bloqueo
         this.bloqueoService = data.find(item => item.slug === 'bloqueo-horario') || null;
       },
       error: (err) => console.error('Error al cargar servicios:', err)
@@ -654,30 +694,94 @@ export class GestionCitasAdminComponent implements OnInit {
   loadAppointments(): void {
     if (!this.selectedEmployeeId) return;
 
-    this.appointmentService.getAdminAvailability(this.selectedEmployeeId, this.selectedDate).subscribe({
-      next: (data: any[]) => {
-        // Formatear hora de 09:00:00 a 09:00
-        const formattedData = data.map(slot => ({
-          ...slot,
-          horaInicio: slot.horaInicio.substring(0, 5),
-          horaFin: slot.horaFin.substring(0, 5)
-        }));
-        this.morningSlots = formattedData.filter(slot => slot.horaFin <= '14:00');
-        this.afternoonSlots = formattedData.filter(slot => slot.horaInicio >= '17:00');
-      },
-      error: (err: any) => console.error('Error al cargar disponibilidad:', err)
-    });
+    if (this.currentView === 'dia') {
+      this.appointmentService.getAdminAvailability(this.selectedEmployeeId, this.selectedDate).subscribe({
+        next: (data: any[]) => {
+          this.dailySlots = data.map(slot => ({
+            ...slot,
+            horaInicio: slot.horaInicio.substring(0, 5),
+            horaFin: slot.horaFin.substring(0, 5)
+          }));
+        },
+        error: (err: any) => console.error('Error al cargar disponibilidad diaria:', err)
+      });
+    } else {
+      this.calculateRangeDays();
+      const startDate = this.rangeDays[0].dateStr;
+      const endDate = this.rangeDays[this.rangeDays.length - 1].dateStr;
+      this.appointmentService.getAdminAvailability(this.selectedEmployeeId, undefined, startDate, endDate).subscribe({
+        next: (data: { [key: string]: any[] }) => {
+          this.rangeAvailability = data;
+        },
+        error: (err: any) => console.error('Error al cargar disponibilidad de rango:', err)
+      });
+    }
+  }
+
+  changeView(view: 'dia' | 'semana' | 'mes'): void {
+    this.currentView = view;
+    this.loadAppointments();
+  }
+
+  navigatePeriod(offset: number): void {
+    const dateObj = new Date(this.selectedDate);
+    if (this.currentView === 'dia') {
+      dateObj.setDate(dateObj.getDate() + offset);
+    } else if (this.currentView === 'semana') {
+      dateObj.setDate(dateObj.getDate() + offset * 7);
+    } else if (this.currentView === 'mes') {
+      dateObj.setMonth(dateObj.getMonth() + offset);
+    }
+    this.selectedDate = dateObj.toISOString().split('T')[0];
+    this.loadAppointments();
+  }
+
+  calculateRangeDays(): void {
+    const date = new Date(this.selectedDate);
+    if (this.currentView === 'semana') {
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(date.setDate(diff));
+      const range = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        range.push({
+          dateStr: d.toISOString().split('T')[0],
+          label: this.getDayName(d)
+        });
+      }
+      this.rangeDays = range;
+    } else if (this.currentView === 'mes') {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const range = [];
+      let d = new Date(firstDay);
+      while (d <= lastDay) {
+        range.push({
+          dateStr: d.toISOString().split('T')[0],
+          label: `${d.getDate()} - ${this.getDayShortName(d)}`
+        });
+        d.setDate(d.getDate() + 1);
+      }
+      this.rangeDays = range;
+    }
+  }
+
+  getDayName(date: Date): string {
+    const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    return days[date.getDay()];
+  }
+
+  getDayShortName(date: Date): string {
+    const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    return days[date.getDay()];
   }
 
   onFilterChange(): void {
     this.loadAppointments();
-  }
-
-  navigateDay(offset: number): void {
-    const dateObj = new Date(this.selectedDate);
-    dateObj.setDate(dateObj.getDate() + offset);
-    this.selectedDate = dateObj.toISOString().split('T')[0];
-    this.onFilterChange();
   }
 
   getSelectedEmployeeName(): string {
@@ -705,6 +809,9 @@ export class GestionCitasAdminComponent implements OnInit {
     if (app) {
       return `Reservado (${app.estado})`;
     }
+    if (slot.descanso) {
+      return 'Descanso';
+    }
     return slot.disponible ? 'Disponible' : 'No disponible';
   }
 
@@ -713,7 +820,10 @@ export class GestionCitasAdminComponent implements OnInit {
     if (app) {
       return `Cliente: ${app.cliente?.nombre}. Servicio: ${app.servicio?.nombre}. Estado: ${app.estado}`;
     }
-    return slot.disponible ? 'Haz clic para reservar' : 'Fuera de jornada / Descanso';
+    if (slot.descanso) {
+      return 'Descanso / Almuerzo';
+    }
+    return slot.disponible ? 'Haz clic para reservar' : 'Fuera de jornada';
   }
 
   onSlotClick(slot: any): void {
@@ -722,7 +832,7 @@ export class GestionCitasAdminComponent implements OnInit {
 
     if (slot.disponible) {
       this.isCreatingManualBooking = false;
-      this.newBooking = { clienteId: null, servicioId: null, notas: '' };
+      this.newBooking = { clienteId: null, servicioId: null, notes: '' };
       this.showFreeSlotModal = true;
     } else if (app) {
       this.selectedApp = app;
@@ -742,7 +852,6 @@ export class GestionCitasAdminComponent implements OnInit {
     this.selectedApp = null;
   }
 
-  // --- ACCIÓN: BLOQUEAR HORARIO (LIBRANZA) ---
   blockActiveSlot(): void {
     if (!this.activeSlot || !this.selectedEmployeeId) return;
 
@@ -751,7 +860,6 @@ export class GestionCitasAdminComponent implements OnInit {
       return;
     }
 
-    // Combinar fecha e inicio del slot
     const startDateTime = `${this.selectedDate}T${this.activeSlot.horaInicio}:00`;
 
     const request: any = {
@@ -759,7 +867,7 @@ export class GestionCitasAdminComponent implements OnInit {
       empleadoId: Number(this.selectedEmployeeId),
       fechaHora: startDateTime,
       estado: 'CONFIRMADA',
-      notas: 'Bloqueo administrativo de agenda / Libranza laboral.'
+      notes: 'Bloqueo administrativo de agenda / Libranza laboral.'
     };
 
     this.appointmentService.createAppointment(request).subscribe({
@@ -773,12 +881,10 @@ export class GestionCitasAdminComponent implements OnInit {
     });
   }
 
-  // --- ACCIÓN: MOSTRAR FORMULARIO CITA MANUAL ---
   showManualBookingForm(): void {
     this.isCreatingManualBooking = true;
   }
 
-  // --- ACCIÓN: GUARDAR CITA MANUAL ---
   saveManualBooking(): void {
     if (!this.activeSlot || !this.selectedEmployeeId || !this.newBooking.clienteId || !this.newBooking.servicioId) return;
 
@@ -789,8 +895,8 @@ export class GestionCitasAdminComponent implements OnInit {
       servicioId: Number(this.newBooking.servicioId),
       empleadoId: Number(this.selectedEmployeeId),
       fechaHora: startDateTime,
-      estado: 'CONFIRMADA', // Las citas manuales desde admin se marcan como confirmadas directamente
-      notas: this.newBooking.notas
+      estado: 'CONFIRMADA',
+      notes: this.newBooking.notes
     };
 
     this.appointmentService.createAppointment(request).subscribe({
