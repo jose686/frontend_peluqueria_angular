@@ -137,7 +137,7 @@ interface TimeSlot {
                 </div>
 
                 <!-- Popover flotante en Hover -->
-                <div class="day-popover glass-panel fade-in-el" (click)="$event.stopPropagation()">
+                <div [class]="'day-popover glass-panel fade-in-el ' + ($index < 14 ? 'popover-down' : 'popover-up') + ($index % 7 >= 4 ? ' popover-left' : ' popover-center')" (click)="$event.stopPropagation()">
                   <div class="popover-header">
                     <h5>{{ day.dateStr | date:'EEEE, d MMMM' }}</h5>
                   </div>
@@ -554,6 +554,7 @@ interface TimeSlot {
       grid-template-columns: repeat(7, 1fr) !important;
       flex-wrap: wrap;
       gap: 1rem !important;
+      overflow: visible !important;
     }
     .calendar-header-row {
       display: grid;
@@ -586,6 +587,9 @@ interface TimeSlot {
       align-items: stretch !important;
       cursor: pointer;
     }
+    .month-day-cell:hover {
+      z-index: 100 !important;
+    }
     .month-day-summary {
       margin-top: auto;
       text-align: center;
@@ -593,13 +597,10 @@ interface TimeSlot {
     .day-popover {
       display: none;
       position: absolute;
-      bottom: 105%;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10000;
+      z-index: 1000 !important;
       width: 290px;
-      min-width: 260px;
-      max-height: 350px;
+      min-width: 280px;
+      max-height: 260px;
       overflow-y: auto;
       background: rgba(18, 18, 20, 0.98);
       border: 1px solid var(--border-color);
@@ -609,6 +610,46 @@ interface TimeSlot {
       backdrop-filter: blur(15px);
       text-align: left;
       cursor: default;
+    }
+    /* Vertical positioning */
+    .popover-down {
+      top: 100%;
+      bottom: auto;
+      margin-top: 6px;
+    }
+    .popover-down::before {
+      content: '';
+      position: absolute;
+      top: -15px;
+      bottom: auto;
+      left: 0;
+      width: 100%;
+      height: 15px;
+    }
+    .popover-up {
+      bottom: 100%;
+      top: auto;
+      margin-bottom: 6px;
+    }
+    .popover-up::before {
+      content: '';
+      position: absolute;
+      bottom: -15px;
+      top: auto;
+      left: 0;
+      width: 100%;
+      height: 15px;
+    }
+    /* Horizontal alignment */
+    .popover-center {
+      left: 50%;
+      right: auto;
+      transform: translateX(-50%);
+    }
+    .popover-left {
+      right: 0;
+      left: auto;
+      transform: none;
     }
     .month-day-cell:hover .day-popover {
       display: block;
