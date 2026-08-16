@@ -87,6 +87,16 @@ interface TimeSlot {
         </div>
 
         <!-- Vista Rango (Semana / Mes como Calendario) -->
+        <div class="calendar-header-row" *ngIf="currentView === 'mes'">
+          <div class="calendar-header-day">Lunes</div>
+          <div class="calendar-header-day">Martes</div>
+          <div class="calendar-header-day">Miércoles</div>
+          <div class="calendar-header-day">Jueves</div>
+          <div class="calendar-header-day">Viernes</div>
+          <div class="calendar-header-day">Sábado</div>
+          <div class="calendar-header-day">Domingo</div>
+        </div>
+
         <div [class]="currentView === 'mes' ? 'range-grid-container calendar-mesh' : 'range-grid-container'" *ngIf="currentView !== 'dia'">
           @for (day of rangeDays; track day.dateStr || $index) {
             @if (day.isEmpty) {
@@ -545,6 +555,22 @@ interface TimeSlot {
       flex-wrap: wrap;
       gap: 1rem !important;
     }
+    .calendar-header-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1rem;
+      text-align: center;
+      margin-bottom: 0.5rem;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 0.75rem 0;
+      border-radius: var(--border-radius-sm);
+      border: 1px solid var(--border-color);
+    }
+    .calendar-header-day {
+      font-weight: 700;
+      color: var(--accent-gold);
+      font-size: 0.9rem;
+    }
     .empty-day {
       background: transparent !important;
       border: 1px dashed rgba(255, 255, 255, 0.05) !important;
@@ -570,16 +596,17 @@ interface TimeSlot {
       bottom: 105%;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 1000;
-      width: 280px;
+      z-index: 10000;
+      width: 290px;
+      min-width: 260px;
       max-height: 350px;
       overflow-y: auto;
-      background: rgba(18, 18, 20, 0.95);
+      background: rgba(18, 18, 20, 0.98);
       border: 1px solid var(--border-color);
       border-radius: var(--border-radius-md);
-      padding: 1rem;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      backdrop-filter: blur(10px);
+      padding: 1.25rem;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+      backdrop-filter: blur(15px);
       text-align: left;
       cursor: default;
     }
@@ -762,10 +789,14 @@ export class GestionCitasAdminComponent implements OnInit {
   private appointmentService = inject(AppointmentService);
   private catalogService = inject(CatalogService);
 
+  formatDateLocal(d: Date): string {
+    return d.toLocaleDateString('sv').substring(0, 10);
+  }
+
   // Filtros
   employees: User[] = [];
   selectedEmployeeId: any = null;
-  selectedDate: string = new Date().toISOString().split('T')[0];
+  selectedDate: string = new Date().toLocaleDateString('sv').substring(0, 10);
 
   // Listados cargados
   clients: User[] = [];
@@ -899,7 +930,7 @@ export class GestionCitasAdminComponent implements OnInit {
     } else if (this.currentView === 'mes') {
       dateObj.setMonth(dateObj.getMonth() + offset);
     }
-    this.selectedDate = dateObj.toISOString().split('T')[0];
+    this.selectedDate = this.formatDateLocal(dateObj);
     this.loadAppointments();
   }
 
@@ -914,8 +945,9 @@ export class GestionCitasAdminComponent implements OnInit {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
         range.push({
-          dateStr: d.toISOString().split('T')[0],
-          label: this.getDayName(d)
+          dateStr: this.formatDateLocal(d),
+          label: this.getDayName(d),
+          isEmpty: false
         });
       }
       this.rangeDays = range;
@@ -925,11 +957,23 @@ export class GestionCitasAdminComponent implements OnInit {
       const firstDay = new Date(year, month, 1);
       const lastDay = new Date(year, month + 1, 0);
       const range = [];
+      
+      const firstDayOfWeek = firstDay.getDay();
+      const emptySlotsCount = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+      for (let i = 0; i < emptySlotsCount; i++) {
+        range.push({
+          dateStr: '',
+          label: '',
+          isEmpty: true
+        });
+      }
+
       let d = new Date(firstDay);
       while (d <= lastDay) {
         range.push({
-          dateStr: d.toISOString().split('T')[0],
-          label: `${d.getDate()} - ${this.getDayShortName(d)}`
+          dateStr: this.formatDateLocal(d),
+          label: `${d.getDate()} - ${this.getDayShortName(d)}`,
+          isEmpty: false
         });
         d.setDate(d.getDate() + 1);
       }
