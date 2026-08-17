@@ -65,4 +65,8 @@ export class AppointmentService {
     }
     return this.http.get<any>(`${environment.apiUrl}/admin/availability`, { params });
   }
+
+  getCompletedAppointments(): Observable<AppointmentDto[]> {
+    return this.http.get<AppointmentDto[]>(`${this.apiUrl}/admin/history`);
+  }
 }

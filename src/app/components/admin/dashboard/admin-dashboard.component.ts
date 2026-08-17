@@ -7,6 +7,7 @@ import { GestionCitasAdminComponent } from '../gestion-citas-admin/gestion-citas
 import { WorkerRegistrationComponent } from '../worker-registration/worker-registration.component';
 import { WeeklyQuadrantComponent } from '../weekly-quadrant/weekly-quadrant.component';
 import { AuthService } from '../../../services/auth.service';
+import { AdminBillingComponent } from '../billing/admin-billing.component';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -18,7 +19,8 @@ import { AuthService } from '../../../services/auth.service';
     AdminMediaComponent,
     GestionCitasAdminComponent,
     WorkerRegistrationComponent,
-    WeeklyQuadrantComponent
+    WeeklyQuadrantComponent,
+    AdminBillingComponent
   ],
   template: `
     <div class="admin-container fade-in-el">
@@ -31,6 +33,7 @@ import { AuthService } from '../../../services/auth.service';
             <button (click)="setTab('workers')" [class.active]="activeTab === 'workers'">👤 Profesionales</button>
             <button (click)="setTab('horarios')" [class.active]="activeTab === 'horarios'">🕒 Horarios</button>
             <button (click)="setTab('catalog')" [class.active]="activeTab === 'catalog'">💇‍♀️ Catálogo</button>
+            <button (click)="setTab('billing')" [class.active]="activeTab === 'billing'">💰 Facturación</button>
             <button (click)="setTab('blog')" [class.active]="activeTab === 'blog'">📝 Blog</button>
             <button (click)="setTab('media')" [class.active]="activeTab === 'media'">📁 Biblioteca de Medios</button>
           }
@@ -53,6 +56,9 @@ import { AuthService } from '../../../services/auth.service';
           }
           @case ('catalog') {
             <app-admin-catalog></app-admin-catalog>
+          }
+          @case ('billing') {
+            <app-admin-billing></app-admin-billing>
           }
           @case ('blog') {
             <app-admin-blog></app-admin-blog>
