@@ -92,7 +92,7 @@ import { AppointmentBookingComponent } from '../appointment-booking/appointment-
                 <h2>Tus Reservas Activas</h2>
                 @if (!isLoggedIn()) {
                   <button class="btn btn-secondary btn-sm" (click)="exitOtpSession()">
-                    🔒 Salir (Tel: {{ verifiedPhone }})
+                    🔒 Consultar otro número / Cerrar consulta
                   </button>
                 }
               </div>

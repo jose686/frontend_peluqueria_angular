@@ -16,6 +16,11 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
+    <!-- Tour Overlay Backdrop -->
+    @if (tourActive) {
+      <div class="tour-overlay" (click)="endTour()"></div>
+    }
+
     <div class="booking-container glass-panel fade-in-el">
       <div class="booking-header">
         <h2>Reservar Nueva Cita</h2>
@@ -237,6 +242,16 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
                   [disabled]="bookingForm.invalid || submitting" 
                   class="btn btn-primary btn-block">
             {{ submitting ? 'Procesando Reserva...' : 'Confirmar Cita' }}
+          </button>
+        }
+
+        <!-- Botón Limpiar Formulario -->
+        @if (bookingForm.get('serviceItemId')?.value && !tourActive) {
+          <button type="button" 
+                  (click)="resetForm()" 
+                  class="btn btn-secondary btn-block" 
+                  style="margin-top: 0.75rem; background: transparent; border: 1px dashed rgba(255,255,255,0.2); color: var(--text-secondary);">
+            🧹 Limpiar Formulario
           </button>
         }
       </form>
@@ -538,27 +553,39 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
       color: #fff;
     }
 
-    /* --- Clean Inline Assist Tour Styles (No dimming backdrop) --- */
+    /* --- Tour Styles --- */
+    .tour-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+    }
     .tour-highlight {
       position: relative;
-      z-index: 100;
-      box-shadow: 0 0 12px var(--accent-gold) !important;
-      border: 2px solid var(--accent-gold) !important;
+      z-index: 1001 !important;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 15px var(--accent-gold) !important;
+      border-color: var(--accent-gold) !important;
+      background: #121212 !important;
       border-radius: 6px;
+      pointer-events: none;
     }
     .tour-tooltip {
       position: absolute;
-      background: #1a1a1a;
+      background: #181818;
       border: 2px solid var(--accent-gold);
       border-radius: 8px;
       padding: 1.25rem;
       width: 280px;
-      z-index: 200;
+      z-index: 1002;
       color: #fff;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+      pointer-events: auto;
     }
     .tour-tooltip-step-1 {
       top: 105%;
@@ -683,7 +710,7 @@ export class AppointmentBookingComponent implements OnInit {
         this.services = data;
       },
       error: () => {
-        this.errorMessage = 'Error al cargar los servicios.';
+        this.errorMessage = 'Error al cargar los servicios de peluquería.';
       }
     });
   }
@@ -702,7 +729,7 @@ export class AppointmentBookingComponent implements OnInit {
           this.workers = data;
         },
         error: () => {
-          this.errorMessage = 'Error al cargar profesionales.';
+          this.errorMessage = 'Error al cargar profesionales en el paso 2.';
         }
       });
     }
@@ -721,6 +748,17 @@ export class AppointmentBookingComponent implements OnInit {
     if (!this.bookingForm.value.workerId) return 2;
     if (!this.bookingForm.value.fecha || !this.bookingForm.value.horaInicio) return 3;
     return 4;
+  }
+
+  resetForm(): void {
+    this.bookingForm.reset();
+    this.otpSent = false;
+    this.calendarDays = [];
+    this.availableSlots = [];
+    this.currentMonth = new Date();
+    this.setupGuestValidators();
+    this.errorMessage = '';
+    this.successMessage = '';
   }
 
   // --- Lógica del Calendario Visual ---
@@ -749,7 +787,7 @@ export class AppointmentBookingComponent implements OnInit {
       },
       error: () => {
         this.loadingCalendar = false;
-        this.errorMessage = 'Error al obtener la disponibilidad del calendario.';
+        this.errorMessage = 'No se pudo cargar la disponibilidad en el calendario.';
       }
     });
   }
@@ -826,7 +864,7 @@ export class AppointmentBookingComponent implements OnInit {
         },
         error: () => {
           this.loadingSlots = false;
-          this.errorMessage = 'Error al obtener los turnos disponibles.';
+          this.errorMessage = 'Error al consultar las horas disponibles.';
         }
       });
     }
@@ -908,7 +946,7 @@ export class AppointmentBookingComponent implements OnInit {
       },
       error: (err) => {
         this.requestingOtp = false;
-        this.errorMessage = err.error?.error || 'No se pudo enviar el código PIN.';
+        this.errorMessage = err.error?.error || 'No se pudo solicitar el código PIN.';
       }
     });
   }
@@ -933,7 +971,7 @@ export class AppointmentBookingComponent implements OnInit {
           },
           error: (err) => {
             this.submitting = false;
-            this.errorMessage = err.error?.error || 'Error al confirmar la cita.';
+            this.errorMessage = err.error?.error || 'No se pudo completar la reserva de cita.';
           }
         });
       } else {
@@ -958,7 +996,7 @@ export class AppointmentBookingComponent implements OnInit {
           },
           error: (err) => {
             this.submitting = false;
-            this.errorMessage = err.error?.error || 'Error al confirmar la cita con el PIN especificado.';
+            this.errorMessage = err.error?.error || 'No se pudo registrar la cita. Verifica el código PIN.';
           }
         });
       }
