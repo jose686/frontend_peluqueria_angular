@@ -110,7 +110,7 @@ import { AppointmentBookingComponent } from '../appointment-booking/appointment-
                     </div>
                     
                     <div class="app-status-info">
-                      <span class="badge" [class]="getStatusClass(app.estado)">{{ app.estado }}</span>
+                      <span class="badge" [class]="getStatusClass(app.estado)">{{ app.estado === 'PENDIENTE' ? 'RESERVADA' : app.estado }}</span>
                       <span class="app-price">{{ getServicePrice(app.serviceItemId) | currency:'EUR' }}</span>
                     </div>
 
@@ -423,7 +423,7 @@ export class MisCitasComponent implements OnInit {
   ngOnInit(): void {
     this.loadServices();
     this.loadWorkers();
-    
+
     if (this.isLoggedIn()) {
       this.loadAppointments();
     } else {
@@ -520,7 +520,7 @@ export class MisCitasComponent implements OnInit {
         this.phoneVerified = true;
         this.verifiedPhone = telefono;
         this.verifiedPin = cleanPin;
-        
+
         // Cache OTP session
         sessionStorage.setItem('otp_phone', telefono);
         sessionStorage.setItem('otp_pin', cleanPin);
@@ -562,17 +562,17 @@ export class MisCitasComponent implements OnInit {
 
   getStatusClass(status: string): string {
     switch (status) {
-      case 'PENDIENTE': return 'badge-pending';
+      case 'PENDIENTE': return 'badge-confirmed';
       case 'CONFIRMADA': return 'badge-confirmed';
       case 'CANCELADA': return 'badge-cancelled';
-      default: return 'badge-pending';
+      default: return 'badge-confirmed';
     }
   }
 
   onBookingSuccess(): void {
     // Redirigir a la pestaña de consulta para ver las citas reservadas
     this.activeTab = 'query';
-    
+
     if (this.isLoggedIn()) {
       this.loadAppointments();
     } else {

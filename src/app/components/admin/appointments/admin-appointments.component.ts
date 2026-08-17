@@ -37,7 +37,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
                 <td>📅 {{ app.fechaHora | date:'dd/MM/yyyy HH:mm' }}</td>
                 <td>{{ app.servicio?.precio | currency:'EUR' }}</td>
                 <td>
-                  <span class="badge" [class]="getStatusClass(app.estado)">{{ app.estado }}</span>
+                  <span class="badge" [class]="getStatusClass(app.estado)">{{ app.estado === 'PENDIENTE' ? 'RESERVADA' : app.estado }}</span>
                 </td>
                 <td>
                   <div class="actions-group">
@@ -148,10 +148,10 @@ export class AdminAppointmentsComponent implements OnInit {
 
   getStatusClass(status: string): string {
     switch (status) {
-      case 'PENDIENTE': return 'badge-pending';
+      case 'PENDIENTE': return 'badge-confirmed';
       case 'CONFIRMADA': return 'badge-confirmed';
       case 'CANCELADA': return 'badge-cancelled';
-      default: return 'badge-pending';
+      default: return 'badge-confirmed';
     }
   }
 

@@ -264,7 +264,9 @@ interface TimeSlot {
 
               <div class="detail-section">
                 <h5>Estado</h5>
-                <span class="badge" [class]="getStatusClass(selectedApp.estado)">{{ selectedApp.estado }}</span>
+                <span class="badge" [class]="getStatusClass(selectedApp.estado)">
+                  {{ selectedApp.estado === 'PENDIENTE' ? 'RESERVADA' : selectedApp.estado }}
+                </span>
               </div>
             </div>
 
@@ -945,7 +947,7 @@ export class GestionCitasAdminComponent implements OnInit {
     }
     const availableCount = slots.filter(s => s.disponible).length;
     const appointmentCount = slots.filter(s => s.appointment).length;
-    
+
     if (availableCount > 0) {
       return { status: 'available', label: `${availableCount} libres`, class: 'badge-green' };
     } else if (appointmentCount > 0) {
@@ -998,7 +1000,7 @@ export class GestionCitasAdminComponent implements OnInit {
       const firstDay = new Date(year, month, 1);
       const lastDay = new Date(year, month + 1, 0);
       const range = [];
-      
+
       const firstDayOfWeek = firstDay.getDay();
       const emptySlotsCount = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
       for (let i = 0; i < emptySlotsCount; i++) {
@@ -1053,13 +1055,16 @@ export class GestionCitasAdminComponent implements OnInit {
     if (slot.disponible) {
       return 'slot-card slot-free';
     }
+    if (slot.appointment) {
+      return 'slot-card slot-reserved';
+    }
     return 'slot-card slot-occupied';
   }
 
   getSlotStatusText(slot: any): string {
     const app = slot.appointment;
     if (app) {
-      return `Reservado (${app.estado})`;
+      return 'RESERVADO';
     }
     if (slot.descanso) {
       return 'Descanso';
@@ -1189,8 +1194,8 @@ export class GestionCitasAdminComponent implements OnInit {
   // --- ACCIÓN: ELIMINAR O DESBLOQUEAR APPOINTMENT ---
   deleteAppointment(id: string | number): void {
     const isBlock = this.showBlockedModal;
-    const confirmMessage = isBlock 
-      ? '¿Estás seguro de que deseas desbloquear y liberar esta franja horaria?' 
+    const confirmMessage = isBlock
+      ? '¿Estás seguro de que deseas desbloquear y liberar esta franja horaria?'
       : '¿Estás seguro de que deseas eliminar permanentemente esta cita del registro?';
 
     if (confirm(confirmMessage)) {
@@ -1214,11 +1219,11 @@ export class GestionCitasAdminComponent implements OnInit {
 
   getStatusClass(status: string): string {
     switch (status) {
-      case 'PENDIENTE': return 'badge-pending';
+      case 'PENDIENTE': return 'badge-confirmed';
       case 'CONFIRMADA': return 'badge-confirmed';
       case 'CANCELADA': return 'badge-cancelled';
       case 'COMPLETADA': return 'badge-confirmed'; // Usar verde o dorado
-      default: return 'badge-pending';
+      default: return 'badge-confirmed';
     }
   }
 }
