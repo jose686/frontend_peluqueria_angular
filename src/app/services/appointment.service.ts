@@ -27,6 +27,10 @@ export class AppointmentService {
     return this.http.put<any>(`${this.apiUrl}/${id}`, request);
   }
 
+  updateAppointmentStatus(id: string | number, status: string): Observable<AppointmentDto> {
+    return this.http.put<AppointmentDto>(`${this.apiUrl}/${id}/status?estado=${status}`, {});
+  }
+
   deleteAppointment(id: string | number): Observable<any> {
     return this.http.delete<any>(`${this.apiUrl}/${id}`);
   }

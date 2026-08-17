@@ -45,19 +45,14 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
                 </td>
                 <td>
                   <div class="actions-group">
-                    @if (app.estado !== 'CONFIRMADA') {
-                      <button (click)="updateStatus(app, 'CONFIRMADA')" class="btn btn-secondary btn-sm accept-btn" title="Confirmar Cita">
-                        Confirmar
+                    @if (app.estado === 'PENDIENTE') {
+                      <button (click)="updateStatus(app, 'COMPLETADA')" class="btn btn-secondary btn-sm accept-btn" title="Completar Cita">
+                        Completar
                       </button>
-                    }
-                    @if (app.estado !== 'CANCELADA') {
                       <button (click)="updateStatus(app, 'CANCELADA')" class="btn btn-danger btn-sm cancel-btn" title="Cancelar Cita">
                         Cancelar
                       </button>
                     }
-                    <button (click)="deleteAppointment(app.id!)" class="btn btn-secondary btn-sm delete-btn-app" title="Eliminar del registro">
-                      🗑️
-                    </button>
                   </div>
                 </td>
               </tr>
@@ -159,15 +154,8 @@ export class AdminAppointmentsComponent implements OnInit {
     }
   }
 
-  updateStatus(app: any, status: 'CONFIRMADA' | 'CANCELADA'): void {
-    const req: any = {
-      servicioId: app.servicio?.id!,
-      fechaHora: app.fechaHora,
-      estado: status,
-      notas: app.notas
-    };
-
-    this.appointmentService.updateAppointment(app.id!, req).subscribe({
+  updateStatus(app: any, status: 'COMPLETADA' | 'CANCELADA'): void {
+    this.appointmentService.updateAppointmentStatus(app.id!, status).subscribe({
       next: () => {
         this.loadAppointments();
       },
@@ -175,18 +163,5 @@ export class AdminAppointmentsComponent implements OnInit {
         alert('Error al actualizar estado: ' + (err.error?.error || 'error desconocido'));
       }
     });
-  }
-
-  deleteAppointment(id: any): void {
-    if (confirm('¿Estás seguro de que deseas eliminar permanentemente esta cita del registro?')) {
-      this.appointmentService.deleteAppointment(id).subscribe({
-        next: () => {
-          this.loadAppointments();
-        },
-        error: (err) => {
-          alert('Error al eliminar la cita: ' + (err.error?.error || 'error desconocido'));
-        }
-      });
-    }
   }
 }
