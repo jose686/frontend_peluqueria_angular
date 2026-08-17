@@ -44,7 +44,7 @@ import { CurrencyPipe } from '@angular/common';
                       {{ item.tipo }}
                     </span>
                   </td>
-                  <td>{{ item.categoria.nombre }}</td>
+                  <td>{{ item.categoria?.nombre || 'Sin categoría' }}</td>
                   <td>{{ item.precio | currency:'EUR' }}</td>
                   <td>
                     <span class="badge" [class]="item.activo ? 'badge-confirmed' : 'badge-cancelled'">
@@ -90,9 +90,9 @@ import { CurrencyPipe } from '@angular/common';
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="categoriaId">Categoría *</label>
-                <select id="categoriaId" formControlName="categoriaId" class="form-control" required>
-                  <option value="">Selecciona categoría</option>
+                <label class="form-label" for="categoriaId">Categoría</label>
+                <select id="categoriaId" formControlName="categoriaId" class="form-control">
+                  <option [value]="null">Sin categoría</option>
                   @for (cat of categories; track cat.id) {
                     <option [value]="cat.id">{{ cat.nombre }} ({{ cat.tipo }})</option>
                   }
@@ -212,7 +212,7 @@ export class AdminCatalogComponent implements OnInit {
     nombre: ['', [Validators.required]],
     precio: [0.0, [Validators.required, Validators.min(0)]],
     tipo: ['SERVICIO', [Validators.required]],
-    categoriaId: ['', [Validators.required]],
+    categoriaId: [null],
     duracionMinutos: [null],
     stock: [null],
     portadaId: [null],
