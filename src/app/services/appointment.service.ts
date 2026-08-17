@@ -11,9 +11,8 @@ export class AppointmentService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl}/appointments`;
 
-  // --- Métodos de compatibilidad anterior y administración ---
   getAppointments(): Observable<any[]> {
-    return this.http.get<any[]>(this.apiUrl);
+    return this.http.get<any[]>(`${this.apiUrl}/admin`);
   }
 
   getAppointmentById(id: string | number): Observable<any> {
