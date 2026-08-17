@@ -22,13 +22,11 @@ export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
   { 
     path: 'mis-citas', 
-    component: MisCitasComponent, 
-    canActivate: [authGuard] 
+    component: MisCitasComponent
   },
   { 
     path: 'reservar', 
-    component: AppointmentBookingComponent, 
-    canActivate: [authGuard] 
+    component: AppointmentBookingComponent
   },
   { 
     path: 'admin', 

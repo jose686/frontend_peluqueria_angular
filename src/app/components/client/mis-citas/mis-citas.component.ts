@@ -1,7 +1,10 @@
 import { Component, OnInit, inject } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { AppointmentService } from '../../../services/appointment.service';
+import { PublicAppointmentService } from '../../../services/public-appointment.service';
 import { CatalogService } from '../../../services/catalog.service';
 import { WorkerService } from '../../../services/worker.service';
+import { AuthService } from '../../../services/auth.service';
 import { AppointmentDto } from '../../../models/appointment.model';
 import { ServiceItemDto } from '../../../models/catalog.model';
 import { WorkerDto } from '../../../models/worker.model';
@@ -11,7 +14,7 @@ import { AppointmentBookingComponent } from '../appointment-booking/appointment-
 @Component({
   selector: 'app-mis-citas',
   standalone: true,
-  imports: [CommonModule, DatePipe, CurrencyPipe, AppointmentBookingComponent],
+  imports: [CommonModule, DatePipe, CurrencyPipe, AppointmentBookingComponent, ReactiveFormsModule],
   template: `
     <div class="appointments-container fade-in-el">
       <div class="appointments-header">
@@ -22,35 +25,92 @@ import { AppointmentBookingComponent } from '../appointment-booking/appointment-
       <div class="appointments-grid">
         <!-- List of existing appointments -->
         <div class="appointments-list-section glass-panel">
-          <h2>Tus Reservas</h2>
           
-          <div class="appointments-list">
-            @for (app of appointments; track app.id) {
-              <div class="appointment-item card-border">
-                <div class="app-main-info">
-                  <span class="app-service">{{ getServiceName(app.serviceItemId) }}</span>
-                  <span class="app-date">📅 {{ app.fecha }} a las {{ app.horaInicio.substring(0, 5) }}</span>
-                  <span class="app-worker">👤 Profesional: {{ getWorkerName(app.workerId) }}</span>
-                </div>
-                
-                <div class="app-status-info">
-                  <span class="badge" [class]="getStatusClass(app.estado)">{{ app.estado }}</span>
-                  <span class="app-price">{{ getServicePrice(app.serviceItemId) | currency:'EUR' }}</span>
+          <!-- Si el usuario no está logueado y no ha verificado su teléfono, mostrar formulario de acceso por OTP -->
+          @if (!isLoggedIn() && !phoneVerified) {
+            <div class="otp-login-box">
+              <h2>Verificar tu Identidad</h2>
+              <p class="info-text">Introduce tu teléfono móvil para recibir un código PIN de acceso y consultar tus citas.</p>
+              
+              @if (errorMsg) {
+                <div class="alert alert-danger">{{ errorMsg }}</div>
+              }
+              @if (successMsg) {
+                <div class="alert alert-success">{{ successMsg }}</div>
+              }
+
+              <form [formGroup]="otpForm" (ngSubmit)="onVerifyOtp()">
+                <div class="form-group">
+                  <label class="form-label" for="telefono">Número de Teléfono</label>
+                  <input type="tel" id="telefono" formControlName="telefono" class="form-control" placeholder="Ej: 600123456" [readonly]="otpSent" />
                 </div>
 
-                @if (app.estado === 'PENDIENTE') {
-                  <button (click)="cancelAppointment(app.id)" class="btn btn-secondary btn-sm cancel-btn">
-                    Cancelar Cita
+                @if (otpSent) {
+                  <div class="form-group fade-in-el">
+                    <label class="form-label" for="pin">Introduce el PIN de 6 dígitos</label>
+                    <input type="text" id="pin" formControlName="pin" class="form-control" placeholder="Ej: 123456" />
+                    <span class="resend-link" (click)="onRequestOtp()">¿No recibiste el código? Solicitar uno nuevo</span>
+                  </div>
+                }
+
+                @if (!otpSent) {
+                  <button type="button" 
+                          [disabled]="!otpForm.get('telefono')?.value || sendingOtp" 
+                          (click)="onRequestOtp()" 
+                          class="btn btn-primary btn-block">
+                    {{ sendingOtp ? 'Enviando código...' : 'Solicitar Código PIN' }}
+                  </button>
+                } @else {
+                  <button type="submit" 
+                          [disabled]="otpForm.invalid || verifyingOtp" 
+                          class="btn btn-primary btn-block">
+                    {{ verifyingOtp ? 'Verificando...' : 'Acceder a mis Citas' }}
                   </button>
                 }
-              </div>
-            } @empty {
-              <div class="empty-list">
-                <p>No tienes ninguna cita reservada.</p>
-                <p class="subtext">¡Completa el formulario de la derecha para programar tu primera cita!</p>
-              </div>
-            }
-          </div>
+              </form>
+            </div>
+          } @else {
+            <!-- Mostrar citas (si está logueado o si ya verificó el teléfono por OTP) -->
+            <div class="header-with-action">
+              <h2>Tus Reservas</h2>
+              @if (!isLoggedIn()) {
+                <button class="btn btn-secondary btn-sm" (click)="exitOtpSession()">
+                  🔒 Salir (Tel: {{ verifiedPhone }})
+                </button>
+              }
+            </div>
+            
+            <div class="appointments-list">
+              @for (app of appointments; track app.id) {
+                <div class="appointment-item card-border">
+                  <div class="app-main-info">
+                    <span class="app-service">{{ getServiceName(app.serviceItemId) }}</span>
+                    <span class="app-date">📅 {{ app.fecha }} a las {{ app.horaInicio.substring(0, 5) }}</span>
+                    <span class="app-worker">👤 Profesional: {{ getWorkerName(app.workerId) }}</span>
+                    @if (app.clienteNombre) {
+                      <span class="app-customer">👤 Cliente: {{ app.clienteNombre }}</span>
+                    }
+                  </div>
+                  
+                  <div class="app-status-info">
+                    <span class="badge" [class]="getStatusClass(app.estado)">{{ app.estado }}</span>
+                    <span class="app-price">{{ getServicePrice(app.serviceItemId) | currency:'EUR' }}</span>
+                  </div>
+
+                  @if (app.estado === 'PENDIENTE') {
+                    <button (click)="cancelAppointment(app.id)" class="btn btn-secondary btn-sm cancel-btn">
+                      Cancelar Cita
+                    </button>
+                  }
+                </div>
+              } @empty {
+                <div class="empty-list">
+                  <p>No tienes ninguna cita reservada.</p>
+                  <p class="subtext">¡Completa el formulario de la derecha para programar tu primera cita!</p>
+                </div>
+              }
+            </div>
+          }
         </div>
 
         <!-- Book a new appointment using the sequential component -->
@@ -92,8 +152,17 @@ import { AppointmentBookingComponent } from '../appointment-booking/appointment-
       font-size: 1.5rem;
       margin-bottom: 1rem;
       color: var(--text-primary);
+    }
+    .header-with-action {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       border-bottom: 1px solid var(--border-color);
       padding-bottom: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .header-with-action h2 {
+      margin-bottom: 0;
     }
     .appointments-list {
       display: flex;
@@ -123,7 +192,7 @@ import { AppointmentBookingComponent } from '../appointment-booking/appointment-
       font-size: 1.1rem;
       color: var(--text-primary);
     }
-    .app-date, .app-worker {
+    .app-date, .app-worker, .app-customer {
       font-size: 0.9rem;
       color: var(--text-secondary);
     }
@@ -172,6 +241,34 @@ import { AppointmentBookingComponent } from '../appointment-booking/appointment-
       background: rgba(220, 38, 38, 0.15);
       color: #f87171;
     }
+    .otp-login-box {
+      max-width: 450px;
+      margin: 2rem auto;
+      width: 100%;
+    }
+    .otp-login-box h2 {
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    .info-text {
+      color: var(--text-secondary);
+      text-align: center;
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+      line-height: 1.4;
+    }
+    .resend-link {
+      display: inline-block;
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--accent-gold);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .btn-block {
+      width: 100%;
+      margin-top: 1.5rem;
+    }
     @media(max-width: 992px) {
       .appointments-grid {
         grid-template-columns: 1fr;
@@ -180,18 +277,51 @@ import { AppointmentBookingComponent } from '../appointment-booking/appointment-
   `]
 })
 export class MisCitasComponent implements OnInit {
+  private fb = inject(FormBuilder);
   private appointmentService = inject(AppointmentService);
+  private publicAppointmentService = inject(PublicAppointmentService);
   private catalogService = inject(CatalogService);
   private workerService = inject(WorkerService);
+  private authService = inject(AuthService);
+
+  isLoggedIn = this.authService.isLoggedIn;
 
   appointments: AppointmentDto[] = [];
   services: ServiceItemDto[] = [];
   workers: WorkerDto[] = [];
 
+  // OTP Login states
+  phoneVerified = false;
+  otpSent = false;
+  sendingOtp = false;
+  verifyingOtp = false;
+  verifiedPhone = '';
+  verifiedPin = '';
+  errorMsg = '';
+  successMsg = '';
+
+  otpForm: FormGroup = this.fb.group({
+    telefono: ['', [Validators.required]],
+    pin: ['']
+  });
+
   ngOnInit(): void {
     this.loadServices();
     this.loadWorkers();
-    this.loadAppointments();
+    
+    if (this.isLoggedIn()) {
+      this.loadAppointments();
+    } else {
+      // Check session storage for OTP session backup
+      const savedPhone = sessionStorage.getItem('otp_phone');
+      const savedPin = sessionStorage.getItem('otp_pin');
+      if (savedPhone && savedPin) {
+        this.verifiedPhone = savedPhone;
+        this.verifiedPin = savedPin;
+        this.phoneVerified = true;
+        this.loadPublicAppointments();
+      }
+    }
   }
 
   loadAppointments(): void {
@@ -201,6 +331,18 @@ export class MisCitasComponent implements OnInit {
       },
       error: () => {
         this.appointments = [];
+      }
+    });
+  }
+
+  loadPublicAppointments(): void {
+    this.publicAppointmentService.getMyAppointments(this.verifiedPhone, this.verifiedPin).subscribe({
+      next: (data) => {
+        this.appointments = data.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+      },
+      error: (err) => {
+        this.errorMsg = err.error?.error || 'Error al recuperar citas.';
+        this.exitOtpSession();
       }
     });
   }
@@ -219,6 +361,72 @@ export class MisCitasComponent implements OnInit {
         this.workers = data;
       }
     });
+  }
+
+  onRequestOtp(): void {
+    const telefono = this.otpForm.get('telefono')?.value;
+    if (!telefono) {
+      this.errorMsg = 'Por favor, introduce tu número de teléfono.';
+      return;
+    }
+
+    this.sendingOtp = true;
+    this.errorMsg = '';
+    this.successMsg = '';
+
+    this.publicAppointmentService.sendOtp(telefono).subscribe({
+      next: () => {
+        this.sendingOtp = false;
+        this.otpSent = true;
+        this.successMsg = 'PIN enviado. Búscalo en tu SMS/WhatsApp o logs de consola.';
+        this.otpForm.get('pin')?.setValidators([Validators.required, Validators.minLength(6)]);
+        this.otpForm.get('pin')?.updateValueAndValidity();
+      },
+      error: (err) => {
+        this.sendingOtp = false;
+        this.errorMsg = err.error?.error || 'No se pudo enviar el código PIN.';
+      }
+    });
+  }
+
+  onVerifyOtp(): void {
+    if (this.otpForm.invalid) return;
+
+    this.verifyingOtp = true;
+    this.errorMsg = '';
+
+    const telefono = this.otpForm.value.telefono;
+    const pin = this.otpForm.value.pin;
+
+    this.publicAppointmentService.verifyOtp(telefono, pin).subscribe({
+      next: () => {
+        this.verifyingOtp = false;
+        this.phoneVerified = true;
+        this.verifiedPhone = telefono;
+        this.verifiedPin = pin;
+        
+        // Cache OTP session
+        sessionStorage.setItem('otp_phone', telefono);
+        sessionStorage.setItem('otp_pin', pin);
+
+        this.loadPublicAppointments();
+      },
+      error: (err) => {
+        this.verifyingOtp = false;
+        this.errorMsg = err.error?.error || 'Código PIN incorrecto o inválido.';
+      }
+    });
+  }
+
+  exitOtpSession(): void {
+    sessionStorage.removeItem('otp_phone');
+    sessionStorage.removeItem('otp_pin');
+    this.phoneVerified = false;
+    this.otpSent = false;
+    this.verifiedPhone = '';
+    this.verifiedPin = '';
+    this.otpForm.reset();
+    this.appointments = [];
   }
 
   getServiceName(serviceId: string): string {
@@ -246,14 +454,26 @@ export class MisCitasComponent implements OnInit {
   }
 
   onBookingSuccess(): void {
-    this.loadAppointments();
+    if (this.isLoggedIn()) {
+      this.loadAppointments();
+    } else if (this.phoneVerified) {
+      this.loadPublicAppointments();
+    }
   }
 
   cancelAppointment(id: string): void {
     if (confirm('¿Estás seguro de que deseas cancelar esta cita?')) {
-      this.appointmentService.cancelAppointment(id).subscribe({
+      const cancelObs = this.isLoggedIn()
+        ? this.appointmentService.cancelAppointment(id)
+        : this.publicAppointmentService.cancelAppointment(id, this.verifiedPhone, this.verifiedPin);
+
+      cancelObs.subscribe({
         next: () => {
-          this.loadAppointments();
+          if (this.isLoggedIn()) {
+            this.loadAppointments();
+          } else {
+            this.loadPublicAppointments();
+          }
         },
         error: (err) => {
           alert('No se pudo cancelar la cita: ' + (err.error?.error || 'error desconocido'));
