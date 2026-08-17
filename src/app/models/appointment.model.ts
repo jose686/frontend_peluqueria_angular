@@ -10,6 +10,9 @@ export interface AppointmentDto {
   estado: string; // PENDIENTE, CONFIRMADA, CANCELADA, etc.
   clienteNombre?: string;
   clienteTelefono?: string;
+  workerName?: string;
+  serviceName?: string;
+  precio?: number;
 }
 
 export interface AppointmentRequest {

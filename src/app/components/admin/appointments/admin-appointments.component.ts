@@ -19,6 +19,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
           <thead>
             <tr>
               <th>Cliente</th>
+              <th>Profesional</th>
               <th>Servicio</th>
               <th>Fecha & Hora</th>
               <th>Precio</th>
@@ -30,12 +31,15 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
             @for (app of appointments; track app.id) {
               <tr>
                 <td>
-                  <strong>{{ app.cliente?.nombre }}</strong>
-                  <br/><small class="text-muted">{{ app.cliente?.email }}</small>
+                  <strong>{{ app.clienteNombre || app.cliente?.nombre || 'Sin nombre' }}</strong>
+                  <br/><small class="text-muted">{{ app.clienteTelefono || app.cliente?.telefono || app.cliente?.email || '' }}</small>
                 </td>
-                <td>{{ app.servicio?.nombre }}</td>
-                <td>📅 {{ app.fechaHora | date:'dd/MM/yyyy HH:mm' }}</td>
-                <td>{{ app.servicio?.precio | currency:'EUR' }}</td>
+                <td>
+                  <strong>{{ app.workerName || app.worker?.nombre || 'Sin asignar' }}</strong>
+                </td>
+                <td>{{ app.serviceName || app.servicio?.nombre || 'Sin servicio' }}</td>
+                <td>📅 {{ app.fechaHora || (app.fecha + 'T' + app.horaInicio) | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>{{ app.precio || app.servicio?.precio | currency:'EUR' }}</td>
                 <td>
                   <span class="badge" [class]="getStatusClass(app.estado)">{{ app.estado === 'PENDIENTE' ? 'RESERVADA' : app.estado }}</span>
                 </td>
@@ -59,7 +63,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
               </tr>
             } @empty {
               <tr>
-                <td colspan="6" style="text-align: center;">No hay ninguna reserva registrada.</td>
+                <td colspan="7" style="text-align: center;">No hay ninguna reserva registrada.</td>
               </tr>
             }
           </tbody>
