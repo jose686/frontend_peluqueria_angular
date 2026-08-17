@@ -16,17 +16,31 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
-    <!-- Tour Overlay Backdrop -->
-    @if (tourActive) {
-      <div class="tour-overlay" (click)="endTour()"></div>
-    }
-
     <div class="booking-container glass-panel fade-in-el">
       <div class="booking-header">
         <h2>Reservar Nueva Cita</h2>
         <button type="button" class="btn-tour-trigger" (click)="startTour()">
-          💡 Asistente Paso a Paso
+          💡 ¿Cómo pedir cita? (Guía paso a paso)
         </button>
+      </div>
+
+      <!-- Stepper Visual Horizontal -->
+      <div class="booking-stepper card-border">
+        <div class="step-item" [class.active]="getCurrentStep() === 1">
+          <span class="step-badge">1</span> Servicio
+        </div>
+        <div class="step-separator">➔</div>
+        <div class="step-item" [class.active]="getCurrentStep() === 2">
+          <span class="step-badge">2</span> Profesional
+        </div>
+        <div class="step-separator">➔</div>
+        <div class="step-item" [class.active]="getCurrentStep() === 3">
+          <span class="step-badge">3</span> Fecha y Hora
+        </div>
+        <div class="step-separator">➔</div>
+        <div class="step-item" [class.active]="getCurrentStep() === 4">
+          <span class="step-badge">4</span> Datos
+        </div>
       </div>
       
       @if (successMessage) {
@@ -264,6 +278,48 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
       color: #000;
       box-shadow: 0 0 8px rgba(212, 163, 89, 0.3);
     }
+    /* Stepper Progress Bar */
+    .booking-stepper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      margin-bottom: 2rem;
+      background: rgba(255, 255, 255, 0.01);
+      border-radius: 8px;
+    }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+    }
+    .step-badge {
+      display: inline-flex;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-primary);
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+    .step-item.active {
+      color: var(--accent-gold);
+    }
+    .step-item.active .step-badge {
+      background: var(--accent-gold);
+      color: #000;
+      font-weight: 700;
+    }
+    .step-separator {
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.1);
+    }
     .form-group {
       margin-bottom: 1.5rem;
     }
@@ -482,39 +538,27 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
       color: #fff;
     }
 
-    /* --- Tour Styles --- */
-    .tour-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.7);
-      z-index: 1000;
-    }
+    /* --- Clean Inline Assist Tour Styles (No dimming backdrop) --- */
     .tour-highlight {
       position: relative;
-      z-index: 1001 !important;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 15px var(--accent-gold) !important;
-      border-color: var(--accent-gold) !important;
-      background: #121212 !important;
+      z-index: 100;
+      box-shadow: 0 0 12px var(--accent-gold) !important;
+      border: 2px solid var(--accent-gold) !important;
       border-radius: 6px;
-      pointer-events: none;
     }
     .tour-tooltip {
       position: absolute;
-      background: #181818;
+      background: #1a1a1a;
       border: 2px solid var(--accent-gold);
       border-radius: 8px;
       padding: 1.25rem;
       width: 280px;
-      z-index: 1002;
+      z-index: 200;
       color: #fff;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
-      pointer-events: auto;
     }
     .tour-tooltip-step-1 {
       top: 105%;
@@ -645,7 +689,7 @@ export class AppointmentBookingComponent implements OnInit {
   }
 
   onServiceChange(): void {
-    if (this.tourActive) return; // Desactivar eventos de formulario reales durante el tour
+    if (this.tourActive) return;
     this.bookingForm.patchValue({ workerId: '', fecha: '', horaInicio: '' });
     this.workers = [];
     this.availableSlots = [];
@@ -669,6 +713,14 @@ export class AppointmentBookingComponent implements OnInit {
     this.bookingForm.patchValue({ fecha: '', horaInicio: '' });
     this.availableSlots = [];
     this.generateCalendar();
+  }
+
+  getCurrentStep(): number {
+    if (this.tourActive) return this.tourStep;
+    if (!this.bookingForm.value.serviceItemId) return 1;
+    if (!this.bookingForm.value.workerId) return 2;
+    if (!this.bookingForm.value.fecha || !this.bookingForm.value.horaInicio) return 3;
+    return 4;
   }
 
   // --- Lógica del Calendario Visual ---
@@ -790,7 +842,6 @@ export class AppointmentBookingComponent implements OnInit {
     this.tourActive = true;
     this.tourStep = 1;
 
-    // Poblar datos ficticios para revelar visualmente todo el formulario en el tour
     this.bookingForm.patchValue({
       serviceItemId: this.services[0]?.id || 'mock-id',
       workerId: this.workers[0]?.id || 'mock-id',
@@ -821,7 +872,6 @@ export class AppointmentBookingComponent implements OnInit {
     this.tourActive = false;
     this.bookingForm.reset();
     
-    // Restaurar los valores reales que tenía el usuario antes de iniciar el asistente
     this.bookingForm.patchValue(this.preTourFormValues);
     this.setupGuestValidators();
 
