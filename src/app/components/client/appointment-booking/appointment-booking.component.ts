@@ -16,8 +16,18 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
+    <!-- Tour Overlay Backdrop -->
+    @if (tourActive) {
+      <div class="tour-overlay" (click)="endTour()"></div>
+    }
+
     <div class="booking-container glass-panel fade-in-el">
-      <h2>Reservar Nueva Cita</h2>
+      <div class="booking-header">
+        <h2>Reservar Nueva Cita</h2>
+        <button type="button" class="btn-tour-trigger" (click)="startTour()">
+          💡 Asistente Paso a Paso
+        </button>
+      </div>
       
       @if (successMessage) {
         <div class="alert alert-success">{{ successMessage }}</div>
@@ -28,7 +38,7 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
 
       <form [formGroup]="bookingForm" (ngSubmit)="onSubmit()">
         <!-- Paso A: Cargar la lista de servicios -->
-        <div class="form-group">
+        <div class="form-group relative-position" [class.tour-highlight]="tourActive && tourStep === 1">
           <label class="form-label" for="serviceItemId">1. Selecciona el Servicio *</label>
           <select id="serviceItemId" formControlName="serviceItemId" class="form-control" (change)="onServiceChange()">
             <option value="">Seleccione un servicio...</option>
@@ -36,11 +46,23 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
               <option [value]="service.id">{{ service.nombre }} ({{ service.precio }}€ - {{ service.duracionMinutos }} min)</option>
             }
           </select>
+
+          <!-- Tooltip Paso 1 -->
+          @if (tourActive && tourStep === 1) {
+            <div class="tour-tooltip tour-tooltip-step-1">
+              <h4><span>Paso 1: Servicio</span> <button type="button" class="close-tour-btn" (click)="endTour()">&times;</button></h4>
+              <p>Elige el servicio que deseas reservar en esta lista desplegable (ej. Peinado, Corte de Pelo).</p>
+              <div class="tour-buttons">
+                <span>1 / 4</span>
+                <button type="button" class="btn btn-primary btn-sm" (click)="nextTourStep()">Siguiente &rarr;</button>
+              </div>
+            </div>
+          }
         </div>
 
         <!-- Paso B: Al seleccionar servicio, cargar trabajadores -->
-        @if (bookingForm.get('serviceItemId')?.value) {
-          <div class="form-group fade-in-el">
+        @if (bookingForm.get('serviceItemId')?.value || tourActive) {
+          <div class="form-group fade-in-el relative-position" [class.tour-highlight]="tourActive && tourStep === 2">
             <label class="form-label" for="workerId">2. Selecciona el Profesional *</label>
             <select id="workerId" formControlName="workerId" class="form-control" (change)="onWorkerChange()">
               <option value="">Seleccione un profesional...</option>
@@ -48,12 +70,25 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
                 <option [value]="worker.id">{{ worker.nombre }} - {{ worker.especialidad }}</option>
               }
             </select>
+
+            <!-- Tooltip Paso 2 -->
+            @if (tourActive && tourStep === 2) {
+              <div class="tour-tooltip tour-tooltip-step-2">
+                <h4><span>Paso 2: Estilista</span> <button type="button" class="close-tour-btn" (click)="endTour()">&times;</button></h4>
+                <p>Elige a tu profesional o peluquero favorito. Si no tienes preferencia, escoge cualquiera.</p>
+                <div class="tour-buttons">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="prevTourStep()">&larr; Atrás</button>
+                  <span>2 / 4</span>
+                  <button type="button" class="btn btn-primary btn-sm" (click)="nextTourStep()">Siguiente &rarr;</button>
+                </div>
+              </div>
+            }
           </div>
         }
 
         <!-- Calendario Visual Interactivo (Paso C) -->
-        @if (bookingForm.get('workerId')?.value) {
-          <div class="calendar-section fade-in-el card-border">
+        @if ((bookingForm.get('workerId')?.value || tourActive)) {
+          <div class="calendar-section fade-in-el card-border relative-position" [class.tour-highlight]="tourActive && tourStep === 3">
             <div class="calendar-header">
               <h3>3. Selecciona la Fecha</h3>
               <div class="month-nav">
@@ -96,11 +131,24 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
               <span class="legend-item"><span class="dot available"></span> Disponible</span>
               <span class="legend-item"><span class="dot busy"></span> Completo/Cerrado</span>
             </div>
+
+            <!-- Tooltip Paso 3 -->
+            @if (tourActive && tourStep === 3) {
+              <div class="tour-tooltip tour-tooltip-step-3">
+                <h4><span>Paso 3: Calendario</span> <button type="button" class="close-tour-btn" (click)="endTour()">&times;</button></h4>
+                <p>Haz clic en los días marcados en verde (disponibles). Los días completos o festivos estarán desactivados en rojo.</p>
+                <div class="tour-buttons">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="prevTourStep()">&larr; Atrás</button>
+                  <span>3 / 4</span>
+                  <button type="button" class="btn btn-primary btn-sm" (click)="nextTourStep()">Siguiente &rarr;</button>
+                </div>
+              </div>
+            }
           </div>
         }
 
         <!-- Selector de Franjas Horarias (Slots - Paso D) -->
-        @if (bookingForm.get('fecha')?.value && bookingForm.get('workerId')?.value) {
+        @if ((bookingForm.get('fecha')?.value && bookingForm.get('workerId')?.value) || tourActive) {
           <div class="slots-section fade-in-el card-border">
             <h3>4. Selecciona la Hora</h3>
             @if (loadingSlots) {
@@ -123,8 +171,8 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
         }
 
         <!-- Datos del Cliente (Sólo si NO está autenticado) -->
-        @if (bookingForm.get('horaInicio')?.value && !isLoggedIn()) {
-          <div class="guest-details-section card-border fade-in-el">
+        @if ((bookingForm.get('horaInicio')?.value && !isLoggedIn()) || (tourActive && tourStep === 4)) {
+          <div class="guest-details-section card-border fade-in-el relative-position" [class.tour-highlight]="tourActive && tourStep === 4">
             <h3>Datos de Contacto</h3>
             <p class="subtext">Necesitamos tu nombre y teléfono para enviarte el código de confirmación.</p>
             
@@ -153,11 +201,24 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
                 <span class="resend-link" (click)="sendOtpCode()">¿No recibiste el código? Solicitar uno nuevo</span>
               </div>
             }
+
+            <!-- Tooltip Paso 4 -->
+            @if (tourActive && tourStep === 4) {
+              <div class="tour-tooltip tour-tooltip-step-4">
+                <h4><span>Paso 4: Registro OTP</span> <button type="button" class="close-tour-btn" (click)="endTour()">&times;</button></h4>
+                <p>Escribe tu nombre y teléfono móvil. Te llegará un PIN SMS/WhatsApp para confirmar tu reserva al instante.</p>
+                <div class="tour-buttons">
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="prevTourStep()">&larr; Atrás</button>
+                  <span>4 / 4</span>
+                  <button type="button" class="btn btn-primary btn-sm" (click)="endTour()">Entendido</button>
+                </div>
+              </div>
+            }
           </div>
         }
 
         <!-- Botón de Envío -->
-        @if (bookingForm.get('horaInicio')?.value && (isLoggedIn() || otpSent)) {
+        @if (bookingForm.get('horaInicio')?.value && (isLoggedIn() || otpSent) && !tourActive) {
           <button type="submit" 
                   [disabled]="bookingForm.invalid || submitting" 
                   class="btn btn-primary btn-block">
@@ -174,15 +235,40 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
       padding: 2.5rem;
       border-radius: var(--border-radius-md);
     }
-    .booking-container h2 {
-      font-size: 1.8rem;
-      color: var(--text-primary);
+    .booking-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 1.5rem;
       border-bottom: 1px solid var(--border-color);
       padding-bottom: 0.75rem;
     }
+    .booking-header h2 {
+      font-size: 1.8rem;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .btn-tour-trigger {
+      background: transparent;
+      border: 1px solid var(--accent-gold);
+      color: var(--accent-gold);
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-tour-trigger:hover {
+      background: var(--accent-gold);
+      color: #000;
+      box-shadow: 0 0 8px rgba(212, 163, 89, 0.3);
+    }
     .form-group {
       margin-bottom: 1.5rem;
+    }
+    .relative-position {
+      position: relative;
     }
     .calendar-section, .slots-section {
       padding: 1.5rem;
@@ -395,6 +481,90 @@ import { AppointmentRequest, PublicBookRequest } from '../../../models/appointme
     .resend-link:hover {
       color: #fff;
     }
+
+    /* --- Tour Styles --- */
+    .tour-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+    }
+    .tour-highlight {
+      position: relative;
+      z-index: 1001 !important;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 15px var(--accent-gold) !important;
+      border-color: var(--accent-gold) !important;
+      background: #121212 !important;
+      border-radius: 6px;
+      pointer-events: none;
+    }
+    .tour-tooltip {
+      position: absolute;
+      background: #181818;
+      border: 2px solid var(--accent-gold);
+      border-radius: 8px;
+      padding: 1.25rem;
+      width: 280px;
+      z-index: 1002;
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      pointer-events: auto;
+    }
+    .tour-tooltip-step-1 {
+      top: 105%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .tour-tooltip-step-2 {
+      top: 105%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .tour-tooltip-step-3 {
+      top: 102%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .tour-tooltip-step-4 {
+      bottom: 105%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .tour-tooltip h4 {
+      color: var(--accent-gold);
+      margin: 0;
+      font-size: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tour-tooltip p {
+      margin: 0;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      color: var(--text-secondary);
+    }
+    .tour-buttons {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.25rem;
+      font-size: 0.8rem;
+    }
+    .close-tour-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-size: 1.2rem;
+      line-height: 1;
+    }
   `]
 })
 export class AppointmentBookingComponent implements OnInit {
@@ -420,6 +590,11 @@ export class AppointmentBookingComponent implements OnInit {
   calendarDays: any[] = [];
   loadingCalendar = false;
   availabilityMap: {[key: string]: boolean} = {};
+
+  // Interactive Tour states
+  tourActive = false;
+  tourStep = 1;
+  preTourFormValues: any = null;
 
   bookingForm: FormGroup = this.fb.group({
     serviceItemId: ['', [Validators.required]],
@@ -470,6 +645,7 @@ export class AppointmentBookingComponent implements OnInit {
   }
 
   onServiceChange(): void {
+    if (this.tourActive) return; // Desactivar eventos de formulario reales durante el tour
     this.bookingForm.patchValue({ workerId: '', fecha: '', horaInicio: '' });
     this.workers = [];
     this.availableSlots = [];
@@ -489,6 +665,7 @@ export class AppointmentBookingComponent implements OnInit {
   }
 
   onWorkerChange(): void {
+    if (this.tourActive) return;
     this.bookingForm.patchValue({ fecha: '', horaInicio: '' });
     this.availableSlots = [];
     this.generateCalendar();
@@ -503,7 +680,6 @@ export class AppointmentBookingComponent implements OnInit {
     this.loadingCalendar = true;
     this.calendarDays = [];
 
-    // Calcular inicio y fin del mes actual para la API
     const year = this.currentMonth.getFullYear();
     const month = this.currentMonth.getMonth();
 
@@ -513,12 +689,6 @@ export class AppointmentBookingComponent implements OnInit {
     const startDateStr = this.formatDate(startOfMonth);
     const endDateStr = this.formatDate(endOfMonth);
 
-    const checkObs = this.isLoggedIn()
-      ? this.appointmentService.getAvailableSlots(workerId, serviceId, startDateStr) // fallback a vacio o mock
-      : this.publicAppointmentService.getAvailableDaysRange(workerId, serviceId, startDateStr, endDateStr);
-
-    // Si es admin logueado, podemos usar un mock local o rango si existiera.
-    // Para simplificar, llamamos a la API del rango siempre.
     this.publicAppointmentService.getAvailableDaysRange(workerId, serviceId, startDateStr, endDateStr).subscribe({
       next: (map) => {
         this.availabilityMap = map;
@@ -534,20 +704,14 @@ export class AppointmentBookingComponent implements OnInit {
 
   buildCalendarGrid(year: number, month: number): void {
     const tempDays: any[] = [];
-    
-    // Día 1 del mes
     const firstDay = new Date(year, month, 1);
-    
-    // Obtener día de la semana (0 = Dom, 1 = Lun, etc.) y ajustar para Lun = 0
     let dayOfWeek = firstDay.getDay() - 1;
-    if (dayOfWeek < 0) dayOfWeek = 6; // Domingo
+    if (dayOfWeek < 0) dayOfWeek = 6;
 
-    // Celdas de padding para cuadrar el grid
     for (let i = 0; i < dayOfWeek; i++) {
       tempDays.push({ isPadding: true });
     }
 
-    // Número de días en el mes
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const todayDate = new Date();
     todayDate.setHours(0, 0, 0, 0);
@@ -620,6 +784,62 @@ export class AppointmentBookingComponent implements OnInit {
     this.bookingForm.patchValue({ horaInicio: slot });
   }
 
+  // --- Lógica del Asistente Guiado (Tour) ---
+  startTour(): void {
+    this.preTourFormValues = this.bookingForm.value;
+    this.tourActive = true;
+    this.tourStep = 1;
+
+    // Poblar datos ficticios para revelar visualmente todo el formulario en el tour
+    this.bookingForm.patchValue({
+      serviceItemId: this.services[0]?.id || 'mock-id',
+      workerId: this.workers[0]?.id || 'mock-id',
+      fecha: this.today,
+      horaInicio: '10:00:00'
+    });
+    this.availableSlots = ['10:00:00', '11:00:00', '12:00:00'];
+    this.calendarDays = [
+      { isPadding: false, dayNumber: 15, dateString: this.today, isPast: false, isAvailable: true }
+    ];
+  }
+
+  nextTourStep(): void {
+    if (this.tourStep < 4) {
+      this.tourStep++;
+    } else {
+      this.endTour();
+    }
+  }
+
+  prevTourStep(): void {
+    if (this.tourStep > 1) {
+      this.tourStep--;
+    }
+  }
+
+  endTour(): void {
+    this.tourActive = false;
+    this.bookingForm.reset();
+    
+    // Restaurar los valores reales que tenía el usuario antes de iniciar el asistente
+    this.bookingForm.patchValue(this.preTourFormValues);
+    this.setupGuestValidators();
+
+    const serviceId = this.bookingForm.get('serviceItemId')?.value;
+    const workerId = this.bookingForm.get('workerId')?.value;
+    const fecha = this.bookingForm.get('fecha')?.value;
+
+    if (serviceId && workerId) {
+      this.generateCalendar();
+      if (fecha) {
+        this.loadSlotsForDate(fecha);
+      }
+    } else {
+      this.availableSlots = [];
+      this.calendarDays = [];
+    }
+  }
+
   sendOtpCode(): void {
     const telefono = this.bookingForm.get('telefono')?.value;
     if (!telefono) {
@@ -667,18 +887,23 @@ export class AppointmentBookingComponent implements OnInit {
           }
         });
       } else {
+        const rawPhone = this.bookingForm.value.telefono;
+        const sanitizedPin = this.bookingForm.value.pin ? String(this.bookingForm.value.pin).trim().replace(/\D/g, '') : '';
+
         const request: PublicBookRequest = {
           workerId: this.bookingForm.value.workerId,
           serviceItemId: this.bookingForm.value.serviceItemId,
           fecha: this.bookingForm.value.fecha,
           horaInicio: this.bookingForm.value.horaInicio,
           nombre: this.bookingForm.value.nombre,
-          telefono: this.bookingForm.value.telefono,
-          pin: this.bookingForm.value.pin
+          telefono: rawPhone,
+          pin: sanitizedPin
         };
 
         this.publicAppointmentService.bookAppointment(request).subscribe({
           next: () => {
+            sessionStorage.setItem('otp_phone', rawPhone);
+            sessionStorage.setItem('otp_pin', sanitizedPin);
             this.handleSuccess();
           },
           error: (err) => {
