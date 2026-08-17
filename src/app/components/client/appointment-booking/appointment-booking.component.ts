@@ -739,6 +739,7 @@ export class AppointmentBookingComponent implements OnInit {
     if (this.tourActive) return;
     this.bookingForm.patchValue({ fecha: '', horaInicio: '' });
     this.availableSlots = [];
+    this.currentMonth = new Date();
     this.generateCalendar();
   }
 
@@ -833,8 +834,9 @@ export class AppointmentBookingComponent implements OnInit {
 
   isCurrentMonthOrPast(): boolean {
     const today = new Date();
-    return this.currentMonth.getFullYear() <= today.getFullYear() &&
-           this.currentMonth.getMonth() <= today.getMonth();
+    const currentYM = this.currentMonth.getFullYear() * 12 + this.currentMonth.getMonth();
+    const todayYM = today.getFullYear() * 12 + today.getMonth();
+    return currentYM <= todayYM;
   }
 
   getMonthYearLabel(): string {
