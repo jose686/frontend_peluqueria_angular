@@ -40,6 +40,11 @@ import { DatePipe } from '@angular/common';
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      width: min(calc(100% - 2rem), 1200px);
+      margin: 0 auto;
+    }
     .blog-header {
       margin-bottom: 3rem;
       text-align: center;
@@ -59,6 +64,10 @@ import { DatePipe } from '@angular/common';
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 2.5rem;
+    }
+    @media (max-width: 700px) {
+      :host { width: min(calc(100% - 1.25rem), 1200px); }
+      .blog-grid { grid-template-columns: 1fr; gap: 1.25rem; }
     }
     .blog-card {
       display: flex;
@@ -150,38 +159,10 @@ export class BlogComponent implements OnInit {
     this.blogService.getAllBlogPosts(false).subscribe({
       next: (posts) => {
         this.blogPosts = posts;
-        if (this.blogPosts.length === 0) {
-          this.loadMockPosts();
-        }
       },
       error: () => {
-        this.loadMockPosts();
+        this.blogPosts = [];
       }
     });
-  }
-
-  private loadMockPosts(): void {
-    this.blogPosts = [
-      {
-        id: 1,
-        titulo: '5 Tendencias de Peinados para este Otoño',
-        slug: '5-tendencias-de-peinados-para-este-otono',
-        contenidoHtml: '<p>Este otoño llega cargado de melenas texturizadas, cortes bob desestructurados y peinados que evocan naturalidad y movimiento.</p>',
-        resumen: 'Conoce los cortes y colores que triunfarán en la nueva temporada y cómo adaptarlos a tus rasgos.',
-        categoria: { nombre: 'Tendencias', tipo: 'BLOG' },
-        estado: 'PUBLICADO',
-        fechaPublicacion: new Date().toISOString()
-      },
-      {
-        id: 2,
-        titulo: 'Guía Completa para Cuidar el Cabello Seco',
-        slug: 'guia-completa-para-cuidar-el-cabello-seco',
-        contenidoHtml: '<p>El cabello seco requiere una nutrición molecular intensiva, evitando sulfatos agresivos y sellando las puntas con aceites esenciales.</p>',
-        resumen: 'Aprende los mejores rituales y productos profesionales recomendados para devolverle el brillo y la suavidad a tu cabello.',
-        categoria: { nombre: 'Cuidado Capilar', tipo: 'BLOG' },
-        estado: 'PUBLICADO',
-        fechaPublicacion: new Date(Date.now() - 86400000 * 2).toISOString()
-      }
-    ];
   }
 }

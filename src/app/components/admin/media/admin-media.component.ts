@@ -1,319 +1,65 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { MediaService } from '../../../services/media.service';
-import { MediaFile } from '../../../models/media.model';
 import { CommonModule } from '@angular/common';
+import { Component, OnInit, inject } from '@angular/core';
+import { forkJoin, finalize } from 'rxjs';
+import { MediaFile } from '../../../core/models/media-file.model';
+import { MediaService } from '../../../core/services/media.service';
 
 @Component({
-  selector: 'app-admin-media',
-  standalone: true,
-  imports: [CommonModule],
+  selector: 'app-admin-media', standalone: true, imports: [CommonModule],
   template: `
     <div class="media-manager fade-in-el">
-      <div class="media-header">
-        <h2>Biblioteca de Medios</h2>
-        <p>Sube imágenes o vídeos para tus portadas y artículos de blog. Haz clic en una tarjeta para copiar su URL o identificador.</p>
+      <div class="media-header"><h2>Biblioteca de Medios</h2><p>Sube imágenes para tus portadas y artículos. Haz clic en una imagen para copiar su URL.</p></div>
+      <div class="drag-drop-zone" [class.drag-over]="isDragOver" [class.disabled]="uploading" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)" (click)="!uploading && fileInput.click()">
+        <input #fileInput type="file" hidden accept="image/jpeg,image/png,image/webp" multiple (change)="onFileSelected($event)" />
+        <span class="upload-icon">📁</span><p class="main-text">Arrastra imágenes aquí o haz clic para buscarlas</p><p class="sub-text">Formatos permitidos: JPG, PNG y WEBP. Máx. 10 MB.</p>
       </div>
-
-      <!-- Drag & Drop Zone -->
-      <div 
-        class="drag-drop-zone"
-        [class.drag-over]="isDragOver"
-        (dragover)="onDragOver($event)"
-        (dragleave)="onDragLeave($event)"
-        (drop)="onDrop($event)"
-        (click)="fileInput.click()"
-      >
-        <input 
-          type="file" 
-          #fileInput 
-          (change)="onFileSelected($event)" 
-          style="display: none" 
-          accept="image/*,video/*"
-          multiple 
-        />
-        <div class="drop-zone-content">
-          <span class="upload-icon">📁</span>
-          <p class="main-text">Arrastra tus archivos aquí o haz clic para buscarlos</p>
-          <p class="sub-text">Formatos permitidos: JPG, PNG, WEBP, MP4. Máx. 10MB.</p>
-        </div>
-      </div>
-
-      @if (uploading) {
-        <div class="upload-progress">
-          <p>Subiendo archivo...</p>
-        </div>
-      }
-
-      <!-- Gallery Grid -->
+      @if (uploading) { <p class="status">Subiendo imágenes...</p> }
+      @if (errorMessage) { <p class="status error">{{ errorMessage }}</p> }
+      @if (noticeMessage) { <p class="status">{{ noticeMessage }}</p> }
       <div class="media-gallery">
         @for (file of mediaFiles; track file.id) {
-          <div class="media-card glass-card">
-            <div class="media-preview" (click)="copyToClipboard(file)">
-              @if (file.fileType === 'IMAGE') {
-                <img [src]="file.url" [alt]="file.filename" />
-              } @else {
-                <video [src]="file.url" muted></video>
-                <span class="video-indicator">▶️</span>
-              }
-              <div class="media-overlay">
-                <span>Copiar URL</span>
-              </div>
-            </div>
-            
-            <div class="media-meta">
-              <span class="media-id" (click)="copyIdentificador(file)" title="Hacer clic para copiar ID">ID: {{ file.identificador }}</span>
-              <button (click)="deleteFile(file.id!)" class="delete-btn" title="Eliminar archivo">🗑️</button>
-            </div>
-          </div>
-        } @empty {
-          <div class="empty-gallery">
-            <p>La biblioteca de medios está vacía. ¡Sube tus primeras imágenes!</p>
-          </div>
-        }
+          <article class="media-card glass-card" (click)="copyUrl(file)">
+            <div class="media-preview"><img [src]="file.url" [alt]="file.filename" /><div class="media-overlay"><span>Copiar URL</span></div></div>
+            <div class="media-meta"><button class="media-id" type="button" (click)="copyId($event, file)" title="Copiar ID">ID: {{ file.id }}</button><button class="delete-btn" type="button" (click)="deleteFile($event, file)" title="Eliminar imagen">🗑️</button></div>
+          </article>
+        } @empty { @if (!loading) { <div class="empty-gallery"><p>La biblioteca de medios está vacía. ¡Sube tu primera imagen!</p></div> } }
       </div>
-    </div>
-  `,
+    </div>`,
   styles: [`
-    .media-manager {
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
-    }
-    .media-header h2 {
-      font-size: 1.5rem;
-      margin-bottom: 0.5rem;
-    }
-    .media-header p {
-      color: var(--text-secondary);
-      font-size: 0.95rem;
-    }
-    .drag-drop-zone {
-      border: 2px dashed rgba(212, 175, 55, 0.3);
-      background: rgba(255, 255, 255, 0.01);
-      border-radius: var(--border-radius-md);
-      padding: 3rem 2rem;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-    .drag-drop-zone:hover,
-    .drag-drop-zone.drag-over {
-      background: rgba(212, 175, 55, 0.03);
-      border-color: var(--accent-gold);
-    }
-    .upload-icon {
-      font-size: 3rem;
-      display: block;
-      margin-bottom: 1rem;
-    }
-    .main-text {
-      font-family: var(--font-heading);
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-    .sub-text {
-      color: var(--text-muted);
-      font-size: 0.85rem;
-    }
-    .upload-progress {
-      text-align: center;
-      color: var(--accent-gold);
-      font-weight: 600;
-    }
-    .media-gallery {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 1.5rem;
-    }
-    .media-card {
-      display: flex;
-      flex-direction: column;
-      border-radius: var(--border-radius-sm);
-      overflow: hidden;
-    }
-    .media-preview {
-      position: relative;
-      height: 140px;
-      background: #000;
-      cursor: pointer;
-    }
-    .media-preview img,
-    .media-preview video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .video-indicator {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 2rem;
-      pointer-events: none;
-    }
-    .media-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-    .media-preview:hover .media-overlay {
-      opacity: 1;
-    }
-    .media-overlay span {
-      color: var(--accent-gold);
-      font-family: var(--font-heading);
-      font-weight: 600;
-      font-size: 0.9rem;
-      border: 1px solid var(--accent-gold);
-      padding: 0.4rem 0.8rem;
-      border-radius: 4px;
-    }
-    .media-meta {
-      padding: 0.75rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(0,0,0,0.2);
-      border-top: 1px solid var(--border-color);
-    }
-    .media-id {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      cursor: pointer;
-      text-overflow: ellipsis;
-      overflow: hidden;
-      white-space: nowrap;
-      max-width: 120px;
-    }
-    .media-id:hover {
-      color: var(--accent-gold);
-      text-decoration: underline;
-    }
-    .delete-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 1rem;
-      padding: 0.2rem;
-      transition: transform 0.2s ease;
-    }
-    .delete-btn:hover {
-      transform: scale(1.2);
-    }
-    .empty-gallery {
-      grid-column: 1 / -1;
-      text-align: center;
-      padding: 3rem;
-      color: var(--text-secondary);
-    }
+    .media-manager{display:flex;flex-direction:column;gap:2rem}.media-header h2{font-size:1.5rem;margin-bottom:.5rem}.media-header p,.sub-text,.empty-gallery{color:var(--text-secondary)}.drag-drop-zone{border:2px dashed rgba(212,175,55,.3);border-radius:var(--border-radius-md);padding:3rem 2rem;text-align:center;cursor:pointer;transition:.3s}.drag-drop-zone:hover,.drag-drop-zone.drag-over{background:rgba(212,175,55,.03);border-color:var(--accent-gold)}.drag-drop-zone.disabled{cursor:wait;opacity:.65}.upload-icon{display:block;font-size:3rem;margin-bottom:1rem}.main-text{font-family:var(--font-heading);font-weight:600;margin-bottom:.5rem}.sub-text{font-size:.85rem}.status{color:var(--accent-gold);font-weight:600;text-align:center;margin:0}.status.error{color:#e57373}.media-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1.5rem}.media-card{border:0;border-radius:var(--border-radius-sm);cursor:pointer;overflow:hidden}.media-preview{background:#000;height:140px;position:relative}.media-preview img{height:100%;object-fit:cover;width:100%}.media-overlay{align-items:center;background:rgba(0,0,0,.7);display:flex;inset:0;justify-content:center;opacity:0;position:absolute;transition:opacity .2s}.media-card:hover .media-overlay{opacity:1}.media-overlay span{border:1px solid var(--accent-gold);border-radius:4px;color:var(--accent-gold);padding:.4rem .8rem}.media-meta{align-items:center;background:rgba(0,0,0,.2);border-top:1px solid var(--border-color);display:flex;justify-content:space-between;padding:.75rem}.media-id,.delete-btn{background:none;border:0;cursor:pointer;padding:.2rem}.media-id{color:var(--text-secondary);font-size:.8rem}.media-id:hover{color:var(--accent-gold);text-decoration:underline}.delete-btn:hover{transform:scale(1.2)}.empty-gallery{grid-column:1/-1;padding:3rem;text-align:center}
   `]
 })
 export class AdminMediaComponent implements OnInit {
-  private mediaService = inject(MediaService);
+  private readonly mediaService = inject(MediaService);
+  private readonly allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  private readonly maxFileSize = 10 * 1024 * 1024;
+  mediaFiles: MediaFile[] = []; isDragOver = false; loading = false; uploading = false; errorMessage = ''; noticeMessage = '';
 
-  mediaFiles: MediaFile[] = [];
-  isDragOver = false;
-  uploading = false;
-
-  ngOnInit(): void {
-    this.loadMedia();
-  }
-
+  ngOnInit(): void { this.loadMedia(); }
   loadMedia(): void {
-    this.mediaService.getAllMedia().subscribe({
-      next: (files) => {
-        this.mediaFiles = files.sort((a, b) => (b.id || 0) - (a.id || 0));
-      },
-      error: () => {
-        this.mediaFiles = [
-          { id: 1, identificador: 'corte-bob-jpg', filename: 'corte-bob.jpg', fileType: 'IMAGE', url: 'https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=400' },
-          { id: 2, identificador: 'champus-hidratantes-png', filename: 'champus.png', fileType: 'IMAGE', url: 'https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?q=80&w=400' }
-        ];
-      }
+    this.loading = true; this.errorMessage = '';
+    this.mediaService.list().pipe(finalize(() => this.loading = false)).subscribe({
+      next: files => this.mediaFiles = files.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)),
+      error: error => this.errorMessage = this.errorFrom(error, 'No se pudo cargar la biblioteca de medios.')
     });
   }
-
-  onDragOver(event: DragEvent): void {
-    event.preventDefault();
-    this.isDragOver = true;
+  onDragOver(event: DragEvent): void { event.preventDefault(); if (!this.uploading) this.isDragOver = true; }
+  onDragLeave(event: DragEvent): void { event.preventDefault(); this.isDragOver = false; }
+  onDrop(event: DragEvent): void { event.preventDefault(); this.isDragOver = false; if (!this.uploading) this.uploadFiles(Array.from(event.dataTransfer?.files ?? [])); }
+  onFileSelected(event: Event): void { const input = event.target as HTMLInputElement; this.uploadFiles(Array.from(input.files ?? [])); input.value = ''; }
+  copyUrl(file: MediaFile): void { this.copy(file.url, 'URL copiada al portapapeles.'); }
+  copyId(event: MouseEvent, file: MediaFile): void { event.stopPropagation(); this.copy(String(file.id), 'ID copiado al portapapeles.'); }
+  deleteFile(event: MouseEvent, file: MediaFile): void {
+    event.stopPropagation(); if (!confirm(`¿Eliminar la imagen "${file.filename}"?`)) return; this.errorMessage = '';
+    this.mediaService.delete(file.id).subscribe({ next: () => { this.mediaFiles = this.mediaFiles.filter(item => item.id !== file.id); this.noticeMessage = 'Imagen eliminada.'; }, error: error => this.errorMessage = this.errorFrom(error, 'No se pudo eliminar la imagen.') });
   }
-
-  onDragLeave(event: DragEvent): void {
-    event.preventDefault();
-    this.isDragOver = false;
+  private uploadFiles(files: File[]): void {
+    const invalid = files.find(file => !this.allowedTypes.has(file.type) || file.size > this.maxFileSize);
+    if (invalid) { this.errorMessage = `"${invalid.name}" no es JPG, PNG o WEBP, o supera 10 MB.`; return; }
+    if (!files.length) return;
+    this.uploading = true; this.errorMessage = ''; this.noticeMessage = '';
+    forkJoin(files.map(file => this.mediaService.upload(file))).pipe(finalize(() => this.uploading = false)).subscribe({ next: uploaded => { this.mediaFiles = [...uploaded, ...this.mediaFiles]; this.noticeMessage = `${uploaded.length} imagen(es) subida(s).`; }, error: error => this.errorMessage = this.errorFrom(error, 'No se pudo subir una de las imágenes.') });
   }
-
-  onDrop(event: DragEvent): void {
-    event.preventDefault();
-    this.isDragOver = false;
-    const files = event.dataTransfer?.files;
-    if (files && files.length > 0) {
-      this.uploadFilesList(files);
-    }
-  }
-
-  onFileSelected(event: any): void {
-    const files = event.target.files;
-    if (files && files.length > 0) {
-      this.uploadFilesList(files);
-    }
-  }
-
-  uploadFilesList(files: FileList): void {
-    this.uploading = true;
-    let uploadedCount = 0;
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const identificador = file.name.toLowerCase().replace(/[^a-z0-9.]/g, '-');
-      
-      this.mediaService.uploadFile(file, identificador).subscribe({
-        next: () => {
-          uploadedCount++;
-          if (uploadedCount === files.length) {
-            this.uploading = false;
-            this.loadMedia();
-          }
-        },
-        error: (err) => {
-          this.uploading = false;
-          alert('Error al subir el archivo: ' + (err.error?.error || file.name));
-        }
-      });
-    }
-  }
-
-  copyToClipboard(file: MediaFile): void {
-    navigator.clipboard.writeText(file.url).then(() => {
-      alert('¡URL copiada al portapapeles!');
-    });
-  }
-
-  copyIdentificador(file: MediaFile): void {
-    navigator.clipboard.writeText(file.identificador).then(() => {
-      alert('¡Identificador de medio copiado al portapapeles!');
-    });
-  }
-
-  deleteFile(id: number): void {
-    if (confirm('¿Estás seguro de que deseas eliminar este archivo multimedia?')) {
-      this.mediaService.deleteMedia(id).subscribe({
-        next: () => {
-          this.loadMedia();
-        },
-        error: (err) => {
-          alert('Error al eliminar archivo: ' + (err.error?.error || 'error desconocido'));
-        }
-      });
-    }
-  }
+  private copy(value: string, message: string): void { navigator.clipboard.writeText(value).then(() => this.noticeMessage = message).catch(() => this.errorMessage = 'No se pudo copiar al portapapeles.'); }
+  private errorFrom(error: { error?: { message?: string } }, fallback: string): string { return error.error?.message ?? fallback; }
 }

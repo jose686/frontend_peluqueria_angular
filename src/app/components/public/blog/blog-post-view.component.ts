@@ -3,7 +3,6 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BlogService } from '../../../services/blog.service';
 import { BlogPost } from '../../../models/blog.model';
 import { DatePipe } from '@angular/common';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-blog-post-view',
@@ -31,7 +30,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
           </div>
         }
 
-        <div class="post-content" [innerHTML]="safeHtml"></div>
+        <div class="post-content" [innerHTML]="post.contenidoHtml"></div>
       </article>
     } @else if (loading) {
       <div class="loading-state">
@@ -47,7 +46,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
   `,
   styles: [`
     .post-container {
-      max-width: 800px;
+      width: min(calc(100% - 2rem), 1200px);
       margin: 0 auto;
     }
     .back-link {
@@ -94,7 +93,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
     }
     .post-cover {
       width: 100%;
-      height: 400px;
+      aspect-ratio: 16 / 9;
       border-radius: var(--border-radius-md);
       overflow: hidden;
       margin-bottom: 3rem;
@@ -104,19 +103,25 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
       width: 100%;
       height: 100%;
       object-fit: cover;
+      display: block;
     }
     .post-content {
       font-size: 1.1rem;
       line-height: 1.8;
       color: #e5e7eb;
     }
-    .post-content ::ng-deep p {
-      margin-bottom: 1.5rem;
+    ::ng-deep .post-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      display: block;
+      margin: 1.5rem auto;
+      object-fit: cover;
     }
-    .post-content ::ng-deep h2 {
-      font-size: 1.8rem;
-      margin: 2.5rem 0 1rem;
-      color: var(--text-primary);
+    @media (max-width: 700px) {
+      .post-container { width: min(calc(100% - 1.25rem), 1200px); }
+      .post-cover { margin-bottom: 2rem; }
+      .post-header h1 { font-size: 2rem; }
     }
     .loading-state,
     .error-state {
@@ -136,10 +141,8 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 export class BlogPostViewComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private blogService = inject(BlogService);
-  private sanitizer = inject(DomSanitizer);
 
   post: BlogPost | null = null;
-  safeHtml: SafeHtml = '';
   loading = true;
 
   ngOnInit(): void {
@@ -148,47 +151,10 @@ export class BlogPostViewComponent implements OnInit {
       this.blogService.getBlogPostBySlug(slug).subscribe({
         next: (post) => {
           this.post = post;
-          this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(post.contenidoHtml);
           this.loading = false;
         },
         error: () => {
           this.loading = false;
-          // Preload local mock blog data for testing
-          if (slug === '5-tendencias-de-peinados-para-este-otono') {
-            this.post = {
-              id: 1,
-              titulo: '5 Tendencias de Peinados para este Otoño',
-              slug: '5-tendencias-de-peinados-para-este-otono',
-              contenidoHtml: `
-                <p>Este otoño llega cargado de melenas texturizadas, cortes bob desestructurados y peinados que evocan naturalidad y movimiento.</p>
-                <h2>1. El Corte Bob Desfilado</h2>
-                <p>El clásico corte bob se reinventa esta temporada con puntas desfiladas y capas finas que aportan volumen sin apelmazar el cabello.</p>
-                <h2>2. Flequillos "Cortina"</h2>
-                <p>Un flequillo versátil que se abre a la mitad, adaptándose a cualquier forma de rostro y aportando un aire desenfadado y juvenil.</p>
-              `,
-              resumen: 'Conoce los cortes y colores que triunfarán en la nueva temporada y cómo adaptarlos a tus rasgos.',
-              categoria: { nombre: 'Tendencias', tipo: 'BLOG' },
-              estado: 'PUBLICADO',
-              fechaPublicacion: new Date().toISOString()
-            };
-            this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(this.post.contenidoHtml);
-          } else if (slug === 'guia-completa-para-cuidar-el-cabello-seco') {
-            this.post = {
-              id: 2,
-              titulo: 'Guía Completa para Cuidar el Cabello Seco',
-              slug: 'guia-completa-para-cuidar-el-cabello-seco',
-              contenidoHtml: `
-                <p>El cabello seco requiere una nutrición molecular intensiva, evitando sulfatos agresivos y sellando las puntas con aceites esenciales.</p>
-                <h2>Rutina de Cuidado Recomendada</h2>
-                <p>Usa mascarillas hidratantes que contengan manteca de karité, aceite de argán o queratina hidrolizada una vez a la semana.</p>
-              `,
-              resumen: 'Aprende los mejores rituales y productos profesionales recomendados para devolverle el brillo y la suavidad a tu cabello.',
-              categoria: { nombre: 'Cuidado Capilar', tipo: 'BLOG' },
-              estado: 'PUBLICADO',
-              fechaPublicacion: new Date(Date.now() - 86400000 * 2).toISOString()
-            };
-            this.safeHtml = this.sanitizer.bypassSecurityTrustHtml(this.post.contenidoHtml);
-          }
         }
       });
     } else {

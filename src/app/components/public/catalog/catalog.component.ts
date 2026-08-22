@@ -156,7 +156,7 @@ import { CurrencyPipe } from '@angular/common';
     }
     .card-image-wrapper {
       position: relative;
-      height: 180px;
+      aspect-ratio: 16 / 9;
       background: var(--bg-tertiary);
     }
     .card-img {
@@ -260,28 +260,25 @@ export class CatalogComponent implements OnInit {
   selectedCategory: number | null = null;
 
   ngOnInit(): void {
-    this.catalogService.getCategories().subscribe(cats => {
+    this.catalogService.getCategories('CATALOGO').subscribe(cats => {
       this.categories = cats;
     });
 
     this.catalogService.getCatalogItems().subscribe({
       next: (items) => {
         this.catalogItems = items.filter(i => i.activo);
-        if (this.catalogItems.length === 0) {
-          this.loadMockCatalog();
-        }
       },
       error: () => {
-        this.loadMockCatalog();
+        this.catalogItems = [];
       }
     });
   }
 
   get filteredCategories(): Category[] {
     if (this.selectedType === 'TODOS') {
-      return this.categories.filter(c => c.tipo === 'SERVICIO' || c.tipo === 'PRODUCTO');
+      return this.categories;
     }
-    return this.categories.filter(c => c.tipo === this.selectedType);
+    return this.categories;
   }
 
   get filteredItems(): CatalogItem[] {
@@ -301,21 +298,4 @@ export class CatalogComponent implements OnInit {
     this.selectedCategory = categoryId;
   }
 
-  private loadMockCatalog(): void {
-    this.categories = [
-      { id: 1, nombre: 'Cortes', tipo: 'SERVICIO' },
-      { id: 2, nombre: 'Coloración', tipo: 'SERVICIO' },
-      { id: 3, nombre: 'Tratamientos', tipo: 'SERVICIO' },
-      { id: 4, nombre: 'Champús', tipo: 'PRODUCTO' },
-      { id: 5, nombre: 'Fijación', tipo: 'PRODUCTO' }
-    ];
-
-    this.catalogItems = [
-      { id: 1, nombre: 'Corte de Autor & Estilismo', descripcion: 'Lavado relajante, masaje capilar, corte vanguardista y peinado.', precio: 35.00, tipo: 'SERVICIO', duracionMinutos: 45, categoria: this.categories[0], activo: true },
-      { id: 2, nombre: 'Coloración Aura Gloss', descripcion: 'Coloración orgánica libre de amoníaco. Brillo infinito.', precio: 65.00, tipo: 'SERVICIO', duracionMinutos: 90, categoria: this.categories[1], activo: true },
-      { id: 3, nombre: 'Ritual de Hidratación Sublime', descripcion: 'Terapia molecular de hidratación intensa para reparar la fibra capilar.', precio: 45.00, tipo: 'SERVICIO', duracionMinutos: 60, categoria: this.categories[2], activo: true },
-      { id: 4, nombre: 'Champú Hidratante Profesional', descripcion: 'Champú de uso diario con extracto de argán para nutrir el cabello seco.', precio: 18.50, tipo: 'PRODUCTO', stock: 15, categoria: this.categories[3], activo: true },
-      { id: 5, nombre: 'Cera de Fijación Mate Extra', descripcion: 'Cera moldeadora de alta fijación con acabado mate.', precio: 14.90, tipo: 'PRODUCTO', stock: 8, categoria: this.categories[4], activo: true }
-    ];
-  }
 }

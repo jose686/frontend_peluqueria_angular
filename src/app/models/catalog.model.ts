@@ -24,7 +24,7 @@ export interface CatalogItemRequest {
   duracionMinutos?: number | null;
   stock?: number | null;
   portadaId?: number | null;
-  categoriaId: number;
+  categoriaId: number | null;
   activo?: boolean;
 }
 

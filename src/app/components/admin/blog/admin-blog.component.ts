@@ -1,307 +1,57 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { BlogService } from '../../../services/blog.service';
-import { CatalogService } from '../../../services/catalog.service';
-import { MediaService } from '../../../services/media.service';
+import { DatePipe } from '@angular/common';
+import { Component, ElementRef, OnInit, ViewChild, inject } from '@angular/core';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { BlogPost, BlogPostRequest } from '../../../models/blog.model';
 import { Category } from '../../../models/category.model';
 import { MediaFile } from '../../../models/media.model';
-import { DatePipe } from '@angular/common';
+import { BlogCategoryService } from '../../../services/blog-category.service';
+import { BlogService } from '../../../services/blog.service';
+import { MediaService } from '../../../services/media.service';
 
 @Component({
-  selector: 'app-admin-blog',
-  standalone: true,
-  imports: [ReactiveFormsModule, DatePipe],
+  selector: 'app-admin-blog', standalone: true, imports: [ReactiveFormsModule, DatePipe],
   template: `
-    <div class="blog-manager fade-in-el">
-      <div class="manager-header">
-        <h2>Gestor del Blog</h2>
-        <button (click)="openCreateForm()" class="btn btn-primary btn-sm">Nuevo Artículo</button>
-      </div>
-
-      <div class="manager-layout">
-        <!-- Blog Posts List -->
-        <div class="table-container glass-panel">
-          <table class="custom-table">
-            <thead>
-              <tr>
-                <th>Título</th>
-                <th>Categoría</th>
-                <th>Estado</th>
-                <th>Fecha de Publicación</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (post of posts; track post.id) {
-                <tr>
-                  <td>
-                    <strong>{{ post.titulo }}</strong>
-                    <br/><small class="text-muted">{{ post.slug }}</small>
-                  </td>
-                  <td>{{ post.categoria.nombre }}</td>
-                  <td>
-                    <span class="badge" [class]="post.estado === 'PUBLICADO' ? 'badge-confirmed' : 'badge-pending'">
-                      {{ post.estado }}
-                    </span>
-                  </td>
-                  <td>{{ post.fechaPublicacion ? (post.fechaPublicacion | date:'dd/MM/yyyy HH:mm') : '-' }}</td>
-                  <td>
-                    <button (click)="editPost(post)" class="action-btn edit" title="Editar">✏️</button>
-                    <button (click)="deletePost(post.id!)" class="action-btn delete" title="Eliminar">🗑️</button>
-                  </td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="5" style="text-align: center;">No hay artículos registrados.</td>
-                </tr>
-              }
-            </tbody>
+    <section class="blog-manager fade-in-el">
+      @if (!showForm) {
+        <header class="page-header"><div><p class="eyebrow">CONTENIDO</p><h2>Gestor del Blog</h2><p>Administra y publica los artículos de Aura Studio.</p></div><button class="btn btn-primary" (click)="openCreateForm()">+ Nuevo Artículo</button></header>
+        <div class="listing glass-panel">
+          <table class="custom-table"><thead><tr><th>Portada</th><th>Artículo</th><th>Categoría</th><th>Estado</th><th>Publicado</th><th>Acciones</th></tr></thead>
+            <tbody>@for (post of posts; track post.id) { <tr><td><div class="cover-thumb">@if (post.portada) { <img [src]="post.portada.url" [alt]="post.titulo" /> } @else { <span>Sin imagen</span> }</div></td><td><strong>{{ post.titulo }}</strong><br><small>{{ post.slug }}</small></td><td>{{ post.categoria.nombre }}</td><td><span class="badge" [class]="post.estado === 'PUBLICADO' ? 'badge-confirmed' : 'badge-pending'">{{ post.estado }}</span></td><td>{{ post.fechaPublicacion ? (post.fechaPublicacion | date:'dd/MM/yyyy') : '—' }}</td><td><button class="action-btn edit" (click)="editPost(post)">✏️</button><button class="action-btn delete" (click)="deletePost(post.id!)">🗑️</button></td></tr> } @empty { <tr><td colspan="6" class="empty">Todavía no hay artículos.</td></tr> }</tbody>
           </table>
         </div>
-
-        <!-- Form Panel -->
-        @if (showForm) {
-          <div class="form-sidebar glass-panel">
-            <h3>{{ editingPostId ? 'Editar Artículo' : 'Nuevo Artículo' }}</h3>
-            
-            <form [formGroup]="postForm" (ngSubmit)="onSubmit()">
-              <div class="form-group">
-                <label class="form-label" for="titulo">Título *</label>
-                <input type="text" id="titulo" formControlName="titulo" class="form-control" required />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="categoriaId">Categoría *</label>
-                <select id="categoriaId" formControlName="categoriaId" class="form-control" required>
-                  <option value="">Selecciona categoría</option>
-                  @for (cat of categories; track cat.id) {
-                    <option [value]="cat.id">{{ cat.nombre }}</option>
-                  }
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="portadaId">Portada (Biblioteca de Medios)</label>
-                <select id="portadaId" formControlName="portadaId" class="form-control">
-                  <option [value]="null">Sin portada</option>
-                  @for (file of mediaFiles; track file.id) {
-                    <option [value]="file.id">{{ file.identificador }} ({{ file.filename }})</option>
-                  }
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="resumen">Resumen / Extracto</label>
-                <textarea id="resumen" formControlName="resumen" class="form-control" rows="2" placeholder="Breve resumen del post..."></textarea>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="contenidoHtml">Contenido HTML *</label>
-                <textarea id="contenidoHtml" formControlName="contenidoHtml" class="form-control" rows="8" placeholder="<p>Contenido del post...</p>" required></textarea>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="estado">Estado *</label>
-                <select id="estado" formControlName="estado" class="form-control" required>
-                  <option value="BORRADOR">Borrador</option>
-                  <option value="PUBLICADO">Publicado</option>
-                </select>
-              </div>
-
-              <div class="form-actions">
-                <button type="submit" [disabled]="postForm.invalid" class="btn btn-primary">Guardar</button>
-                <button type="button" (click)="closeForm()" class="btn btn-secondary">Cancelar</button>
-              </div>
-            </form>
-          </div>
-        }
-      </div>
-    </div>
-  `,
-  styles: [`
-    .blog-manager {
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
-    }
-    .manager-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .manager-layout {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 2rem;
-    }
-    @media(min-width: 992px) {
-      .manager-layout {
-        grid-template-columns: 1.1fr 0.9fr;
+      } @else {
+        <header class="page-header editor-header"><div><button class="back-btn" (click)="closeForm()">← Volver al listado</button><p class="eyebrow">REDACCIÓN</p><h2>{{ editingPostId ? 'Editar Artículo' : 'Crear Artículo de Blog' }}</h2></div></header>
+        <form class="editor-card glass-panel" [formGroup]="postForm" (ngSubmit)="onSubmit()">
+          <label>Título del artículo *</label><input class="form-control large-input" formControlName="titulo" placeholder="Escribe el título" />
+          <div class="two-fields"><div><label>Categoría *</label><select class="form-control" formControlName="categoriaId"><option value="">Selecciona categoría</option>@for (cat of categories; track cat.id) { <option [value]="cat.id">{{ cat.nombre }}</option> }</select></div><div><label>Estado *</label><select class="form-control" formControlName="estado"><option value="BORRADOR">Borrador</option><option value="PUBLICADO">Publicado</option></select></div></div>
+          <label>Resumen / Extracto</label><textarea class="form-control" formControlName="resumen" maxlength="300" rows="3" placeholder="Resumen breve para el listado y SEO..."></textarea><small class="counter">{{ (postForm.get('resumen')?.value?.length || 0) }}/300</small>
+          <label>Imagen destacada</label><div class="cover-picker"><div class="cover-preview">@if (selectedCover) { <img [src]="selectedCover.url" [alt]="selectedCover.filename" /> } @else { <span>Sin imagen</span> }</div><button type="button" class="btn btn-secondary" (click)="openMediaPicker('cover')">▣ Seleccionar de Galería</button><button type="button" class="link-btn" (click)="clearCover()" [disabled]="!selectedCover">Quitar</button></div>
+          <label>Contenido completo *</label><div class="rich-editor"><div class="toolbar"><button type="button" title="Negrita" (click)="format('bold')"><b>B</b></button><button type="button" title="Cursiva" (click)="format('italic')"><i>I</i></button><button type="button" title="Subrayado" (click)="format('underline')"><u>U</u></button><button type="button" title="Tachado" (click)="format('strikeThrough')">S</button><span></span><button type="button" (click)="format('formatBlock', 'h1')">H₁</button><button type="button" (click)="format('formatBlock', 'h2')">H₂</button><button type="button" (click)="format('formatBlock', 'blockquote')">❝</button><span></span><button type="button" (click)="format('justifyLeft')">≡</button><button type="button" (click)="format('justifyCenter')">≡</button><button type="button" (click)="format('justifyRight')">≡</button><button type="button" (click)="format('justifyFull')">☰</button><span></span><button type="button" title="Insertar imagen" (click)="openMediaPicker('content')">▧ Imagen</button></div><div #editor class="editor-surface" contenteditable="true" (input)="onEditorInput()" data-placeholder="Redacta el contenido del artículo..."></div></div>
+          <div class="form-actions"><button type="button" class="btn btn-secondary" (click)="closeForm()">Cancelar</button><button class="btn btn-primary" [disabled]="postForm.invalid">{{ postForm.value.estado === 'PUBLICADO' ? 'Publicar artículo' : 'Guardar borrador' }}</button></div>
+        </form>
       }
-    }
-    .form-sidebar {
-      padding: 1.5rem;
-      border-radius: var(--border-radius-md);
-    }
-    .form-sidebar h3 {
-      font-size: 1.3rem;
-      margin-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 0.5rem;
-    }
-    .form-actions {
-      display: flex;
-      gap: 1rem;
-      margin-top: 1.5rem;
-    }
-    .action-btn {
-      background: none;
-      border: none;
-      font-size: 1.1rem;
-      cursor: pointer;
-      padding: 0.25rem;
-      transition: transform 0.2s ease;
-    }
-    .action-btn:hover {
-      transform: scale(1.2);
-    }
+      @if (mediaPickerTarget) { <div class="modal-backdrop" (click)="closeMediaPicker()"><section class="media-modal glass-panel" (click)="$event.stopPropagation()"><header><h3>Biblioteca de Medios</h3><button class="action-btn" (click)="closeMediaPicker()">✕</button></header><div class="media-grid">@for (file of mediaFiles; track file.id) { <button type="button" class="media-option" (click)="selectMedia(file)"><img [src]="file.url" [alt]="file.filename" /><span>{{ file.filename }}</span></button> } @empty { <p>No hay imágenes en la biblioteca.</p> }</div></section></div> }
+    </section>`,
+  styles: [`
+    .blog-manager{width:100%;display:flex;flex-direction:column;gap:1.5rem}.page-header{display:flex;justify-content:space-between;align-items:center;gap:1rem}.page-header h2{margin:.15rem 0;font-size:2rem}.page-header p{margin:0;color:var(--text-secondary)}.eyebrow{color:var(--accent-gold)!important;font-size:.75rem;font-weight:700;letter-spacing:.12em}.listing,.editor-card{border-radius:var(--border-radius-md);padding:1.5rem;width:100%;box-sizing:border-box}.cover-thumb,.cover-preview{background:#111827;border:1px solid var(--border-color);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--text-muted)}.cover-thumb{width:92px;height:58px}.cover-preview{height:110px;width:170px}.cover-thumb img,.cover-preview img,.media-option img{height:100%;object-fit:cover;width:100%}.custom-table td{vertical-align:middle}.custom-table small,.counter{color:var(--text-muted)}.empty{text-align:center;padding:3rem}.action-btn{background:none;border:0;cursor:pointer;font-size:1.1rem;padding:.3rem}.editor-header{align-items:flex-start}.back-btn,.link-btn{background:none;border:0;color:var(--accent-gold);cursor:pointer;padding:0 0 .75rem}.editor-card{display:flex;flex-direction:column;gap:.65rem;padding:2.5rem;max-width:1100px;margin:auto}.editor-card label{font-weight:600;color:var(--text-secondary)}.large-input{font-size:1.1rem;padding:.85rem}.two-fields{display:grid;grid-template-columns:2fr 1fr;gap:1rem}.two-fields>div{display:flex;flex-direction:column;gap:.5rem}.cover-picker{display:flex;gap:1rem;align-items:center}.rich-editor{border:1px solid var(--border-color);border-radius:8px;overflow:hidden}.toolbar{display:flex;gap:.2rem;flex-wrap:wrap;padding:.55rem;background:rgba(255,255,255,.04);border-bottom:1px solid var(--border-color)}.toolbar button{background:transparent;border:0;border-radius:4px;color:var(--text-primary);cursor:pointer;padding:.4rem .55rem}.toolbar button:hover{background:rgba(212,175,55,.15);color:var(--accent-gold)}.toolbar span{border-left:1px solid var(--border-color);margin:.2rem}.editor-surface{min-height:280px;padding:1rem;outline:0;line-height:1.65}.editor-surface:empty:before{content:attr(data-placeholder);color:var(--text-muted)}::ng-deep .editor-surface img{max-width:100%;height:auto;border-radius:8px;display:block;margin:1.5rem auto;object-fit:cover}.form-actions{display:flex;justify-content:flex-end;gap:1rem;margin-top:1rem}.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.72);display:grid;place-items:center;z-index:1000;padding:1rem}.media-modal{width:min(900px,100%);max-height:80vh;overflow:auto;padding:1.5rem;border-radius:var(--border-radius-md)}.media-modal header{display:flex;justify-content:space-between;align-items:center}.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem}.media-option{background:#111827;border:1px solid var(--border-color);border-radius:7px;color:var(--text-secondary);cursor:pointer;overflow:hidden;padding:0;text-align:left}.media-option span{display:block;font-size:.75rem;overflow:hidden;padding:.45rem;text-overflow:ellipsis;white-space:nowrap}@media(max-width:700px){.page-header,.cover-picker{align-items:flex-start;flex-direction:column}.two-fields{grid-template-columns:1fr}.editor-card{padding:1.25rem}}
   `]
 })
 export class AdminBlogComponent implements OnInit {
-  private blogService = inject(BlogService);
-  private catalogService = inject(CatalogService);
-  private mediaService = inject(MediaService);
-  private fb = inject(FormBuilder);
-
-  posts: BlogPost[] = [];
-  categories: Category[] = [];
-  mediaFiles: MediaFile[] = [];
-
-  showForm = false;
-  editingPostId: number | null = null;
-
-  postForm: FormGroup = this.fb.group({
-    titulo: ['', [Validators.required]],
-    categoriaId: ['', [Validators.required]],
-    portadaId: [null],
-    resumen: [''],
-    contenidoHtml: ['', [Validators.required]],
-    estado: ['BORRADOR', [Validators.required]]
-  });
-
-  ngOnInit(): void {
-    this.loadPosts();
-    this.loadBlogCategories();
-    this.loadMedia();
-  }
-
-  loadPosts(): void {
-    this.blogService.getAllBlogPosts(true).subscribe({
-      next: (data) => {
-        this.posts = data;
-      },
-      error: () => {
-        this.loadMockPosts();
-      }
-    });
-  }
-
-  private loadMockPosts(): void {
-    this.posts = [
-      { id: 1, titulo: '5 Tendencias de Peinados para este Otoño', slug: '5-tendencias-de-peinados-para-este-otono', resumen: 'Tendencias otoñales.', contenidoHtml: '<p>Contenido</p>', categoria: { id: 3, nombre: 'Tendencias', tipo: 'BLOG' }, estado: 'PUBLICADO', fechaPublicacion: new Date().toISOString() }
-    ];
-  }
-
-  loadBlogCategories(): void {
-    this.catalogService.getCategoriesByTipo('BLOG').subscribe(data => {
-      this.categories = data;
-      if (this.categories.length === 0) {
-        this.categories = [
-          { id: 3, nombre: 'Tendencias', tipo: 'BLOG' },
-          { id: 4, nombre: 'Cuidado Capilar', tipo: 'BLOG' }
-        ];
-      }
-    });
-  }
-
-  loadMedia(): void {
-    this.mediaService.getAllMedia().subscribe(data => {
-      this.mediaFiles = data;
-    });
-  }
-
-  openCreateForm(): void {
-    this.editingPostId = null;
-    this.postForm.reset({
-      titulo: '',
-      categoriaId: '',
-      portadaId: null,
-      resumen: '',
-      contenidoHtml: '',
-      estado: 'BORRADOR'
-    });
-    this.showForm = true;
-  }
-
-  editPost(post: BlogPost): void {
-    this.editingPostId = post.id!;
-    this.postForm.patchValue({
-      titulo: post.titulo,
-      categoriaId: post.categoria?.id || '',
-      portadaId: post.portada?.id || null,
-      resumen: post.resumen,
-      contenidoHtml: post.contenidoHtml,
-      estado: post.estado
-    });
-    this.showForm = true;
-  }
-
-  onSubmit(): void {
-    if (this.postForm.valid) {
-      const val = this.postForm.value;
-      const req: BlogPostRequest = {
-        titulo: val.titulo,
-        categoriaId: Number(val.categoriaId),
-        portadaId: val.portadaId ? Number(val.portadaId) : null,
-        resumen: val.resumen,
-        contenidoHtml: val.contenidoHtml,
-        estado: val.estado
-      };
-
-      if (this.editingPostId) {
-        this.blogService.updateBlogPost(this.editingPostId, req).subscribe({
-          next: () => {
-            this.loadPosts();
-            this.closeForm();
-          },
-          error: (err) => alert('Error al guardar: ' + (err.error?.error || 'error desconocido'))
-        });
-      } else {
-        this.blogService.createBlogPost(req).subscribe({
-          next: () => {
-            this.loadPosts();
-            this.closeForm();
-          },
-          error: (err) => alert('Error al crear: ' + (err.error?.error || 'error desconocido'))
-        });
-      }
-    }
-  }
-
-  deletePost(id: number): void {
-    if (confirm('¿Estás seguro de que deseas eliminar este artículo de blog?')) {
-      this.blogService.deleteBlogPost(id).subscribe({
-        next: () => {
-          this.loadPosts();
-        },
-        error: (err) => alert('Error al eliminar: ' + (err.error?.error || 'error desconocido'))
-      });
-    }
-  }
-
-  closeForm(): void {
-    this.showForm = false;
-    this.editingPostId = null;
-  }
+  @ViewChild('editor') editor?: ElementRef<HTMLDivElement>;
+  private readonly blogService = inject(BlogService); private readonly categoryService = inject(BlogCategoryService); private readonly mediaService = inject(MediaService); private readonly fb = inject(FormBuilder);
+  posts: BlogPost[] = []; categories: Category[] = []; mediaFiles: MediaFile[] = []; showForm = false; editingPostId: number | null = null; mediaPickerTarget: 'cover' | 'content' | null = null; selectedCover: MediaFile | null = null;
+  postForm: FormGroup = this.fb.group({ titulo: ['', Validators.required], categoriaId: ['', Validators.required], portadaId: [null], resumen: [''], contenidoHtml: ['', Validators.required], estado: ['BORRADOR', Validators.required] });
+  ngOnInit(): void { this.loadPosts(); this.categoryService.list().subscribe({next: categories => this.categories = categories}); this.mediaService.getAllMedia().subscribe({next: media => this.mediaFiles = media}); }
+  loadPosts(): void { this.blogService.getAllBlogPosts(true).subscribe({next: posts => this.posts = posts, error: () => this.posts = []}); }
+  openCreateForm(): void { this.editingPostId = null; this.selectedCover = null; this.postForm.reset({titulo:'',categoriaId:'',portadaId:null,resumen:'',contenidoHtml:'',estado:'BORRADOR'}); this.showForm = true; setTimeout(() => this.editor?.nativeElement.replaceChildren()); }
+  editPost(post: BlogPost): void { this.editingPostId = post.id!; this.selectedCover = post.portada ?? null; this.postForm.patchValue({titulo:post.titulo,categoriaId:post.categoria.id,portadaId:post.portada?.id ?? null,resumen:post.resumen ?? '',contenidoHtml:post.contenidoHtml,estado:post.estado}); this.showForm = true; setTimeout(() => { if (this.editor) this.editor.nativeElement.innerHTML = post.contenidoHtml; }); }
+  closeForm(): void { this.showForm = false; this.editingPostId = null; this.mediaPickerTarget = null; }
+  onEditorInput(): void { this.postForm.patchValue({contenidoHtml: this.editor?.nativeElement.innerHTML ?? ''}); }
+  format(command: string, value?: string): void { this.editor?.nativeElement.focus(); document.execCommand(command, false, value); this.onEditorInput(); }
+  openMediaPicker(target: 'cover' | 'content'): void { this.mediaPickerTarget = target; }
+  closeMediaPicker(): void { this.mediaPickerTarget = null; }
+  selectMedia(file: MediaFile): void { if (this.mediaPickerTarget === 'cover') { this.selectedCover = file; this.postForm.patchValue({portadaId:file.id}); } else { this.format('insertImage', file.url); } this.closeMediaPicker(); }
+  clearCover(): void { this.selectedCover = null; this.postForm.patchValue({portadaId:null}); }
+  onSubmit(): void { this.onEditorInput(); if (this.postForm.invalid) return; const value = this.postForm.value; const request: BlogPostRequest = {titulo:value.titulo,categoriaId:Number(value.categoriaId),portadaId:value.portadaId ? Number(value.portadaId) : null,resumen:value.resumen,contenidoHtml:value.contenidoHtml,estado:value.estado}; const result = this.editingPostId ? this.blogService.updateBlogPost(this.editingPostId,request) : this.blogService.createBlogPost(request); result.subscribe({next:()=>{this.loadPosts();this.closeForm();},error:error=>alert('Error al guardar: '+(error.error?.error ?? 'error desconocido'))}); }
+  deletePost(id:number):void { if(confirm('¿Eliminar este artículo?')) this.blogService.deleteBlogPost(id).subscribe({next:()=>this.loadPosts(),error:error=>alert(error.error?.error ?? 'No se pudo eliminar')}); }
 }

@@ -15,8 +15,9 @@ export class CatalogService {
   private servicesUrl = `${environment.apiUrl}/services`;
 
   // --- Category Methods ---
-  getCategories(): Observable<Category[]> {
-    return this.http.get<Category[]>(this.categoriesUrl);
+  getCategories(type?: 'CATALOGO' | 'BLOG'): Observable<Category[]> {
+    const params = type ? new HttpParams().set('type', type) : undefined;
+    return this.http.get<Category[]>(this.categoriesUrl, { params });
   }
 
   getCategoriesByTipo(tipo: string): Observable<Category[]> {

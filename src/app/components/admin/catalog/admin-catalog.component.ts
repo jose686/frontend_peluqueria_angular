@@ -1,349 +1,51 @@
+import { CurrencyPipe } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { CatalogService } from '../../../services/catalog.service';
-import { MediaService } from '../../../services/media.service';
+import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CatalogItem, CatalogItemRequest } from '../../../models/catalog.model';
 import { Category } from '../../../models/category.model';
 import { MediaFile } from '../../../models/media.model';
-import { CurrencyPipe } from '@angular/common';
+import { CatalogService } from '../../../services/catalog.service';
+import { MediaService } from '../../../services/media.service';
 
 @Component({
-  selector: 'app-admin-catalog',
-  standalone: true,
-  imports: [ReactiveFormsModule, CurrencyPipe],
+  selector: 'app-admin-catalog', standalone: true, imports: [ReactiveFormsModule, CurrencyPipe],
   template: `
-    <div class="catalog-manager fade-in-el">
-      <div class="manager-header">
-        <h2>Gestión del Catálogo</h2>
-        <button (click)="openCreateForm()" class="btn btn-primary btn-sm">Nuevo Artículo</button>
-      </div>
-
-      <div class="manager-layout">
-        <!-- Catalog Items Table -->
-        <div class="table-container glass-panel">
-          <table class="custom-table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Tipo</th>
-                <th>Categoría</th>
-                <th>Precio</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of items; track item.id) {
-                <tr>
-                  <td>
-                    <strong>{{ item.nombre }}</strong>
-                    <br/><small class="text-muted">{{ item.slug }}</small>
-                  </td>
-                  <td>
-                    <span class="badge" [class]="item.tipo === 'SERVICIO' ? 'badge-confirmed' : 'badge-pending'">
-                      {{ item.tipo }}
-                    </span>
-                  </td>
-                  <td>{{ item.categoria?.nombre || 'Sin categoría' }}</td>
-                  <td>{{ item.precio | currency:'EUR' }}</td>
-                  <td>
-                    <span class="badge" [class]="item.activo ? 'badge-confirmed' : 'badge-cancelled'">
-                      {{ item.activo ? 'Activo' : 'Inactivo' }}
-                    </span>
-                  </td>
-                  <td>
-                    <button (click)="editItem(item)" class="action-btn edit" title="Editar">✏️</button>
-                    <button (click)="deleteItem(item.id!)" class="action-btn delete" title="Eliminar">🗑️</button>
-                  </td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="6" style="text-align: center;">No hay artículos registrados.</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Form Panel (Modal-like overlay or sidebar) -->
-        @if (showForm) {
-          <div class="form-sidebar glass-panel">
-            <h3>{{ editingItemId ? 'Editar Artículo' : 'Nuevo Artículo' }}</h3>
-            
-            <form [formGroup]="itemForm" (ngSubmit)="onSubmit()">
-              <div class="form-group">
-                <label class="form-label" for="nombre">Nombre *</label>
-                <input type="text" id="nombre" formControlName="nombre" class="form-control" required />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="precio">Precio (€) *</label>
-                <input type="number" id="precio" formControlName="precio" class="form-control" step="0.01" required />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="tipo">Tipo *</label>
-                <select id="tipo" formControlName="tipo" class="form-control" (change)="onTipoChange()" required>
-                  <option value="SERVICIO">Servicio</option>
-                  <option value="PRODUCTO">Producto</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="categoriaId">Categoría</label>
-                <select id="categoriaId" formControlName="categoriaId" class="form-control">
-                  <option [value]="null">Sin categoría</option>
-                  @for (cat of categories; track cat.id) {
-                    <option [value]="cat.id">{{ cat.nombre }} ({{ cat.tipo }})</option>
-                  }
-                </select>
-              </div>
-
-              @if (itemForm.get('tipo')?.value === 'SERVICIO') {
-                <div class="form-group">
-                  <label class="form-label" for="duracionMinutos">Duración (minutos)</label>
-                  <input type="number" id="duracionMinutos" formControlName="duracionMinutos" class="form-control" />
-                </div>
-              } @else if (itemForm.get('tipo')?.value === 'PRODUCTO') {
-                <div class="form-group">
-                  <label class="form-label" for="stock">Stock</label>
-                  <input type="number" id="stock" formControlName="stock" class="form-control" />
-                </div>
-              }
-
-              <div class="form-group">
-                <label class="form-label" for="portadaId">Portada (Biblioteca de Medios)</label>
-                <select id="portadaId" formControlName="portadaId" class="form-control">
-                  <option [value]="null">Sin portada</option>
-                  @for (file of mediaFiles; track file.id) {
-                    <option [value]="file.id">{{ file.identificador }} ({{ file.filename }})</option>
-                  }
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="descripcion">Descripción</label>
-                <textarea id="descripcion" formControlName="descripcion" class="form-control" rows="3"></textarea>
-              </div>
-
-              <div class="form-group checkbox-group">
-                <input type="checkbox" id="activo" formControlName="activo" />
-                <label for="activo">Artículo Activo</label>
-              </div>
-
-              <div class="form-actions">
-                <button type="submit" [disabled]="itemForm.invalid" class="btn btn-primary">Guardar</button>
-                <button type="button" (click)="closeForm()" class="btn btn-secondary">Cancelar</button>
-              </div>
-            </form>
-          </div>
-        }
-      </div>
-    </div>
-  `,
-  styles: [`
-    .catalog-manager {
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
-    }
-    .manager-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .manager-layout {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 2rem;
-    }
-    @media(min-width: 992px) {
-      .manager-layout {
-        grid-template-columns: 1.2fr 0.8fr;
+    <section class="catalog-manager fade-in-el">
+      @if (!showForm) {
+        <header class="page-header"><div><p class="eyebrow">CATÁLOGO</p><h2>Gestión del Catálogo</h2><p>Administra servicios, productos y sus imágenes destacadas.</p></div><button class="btn btn-primary" (click)="openCreateForm()">+ Nuevo Producto / Servicio</button></header>
+        <div class="listing glass-panel"><table class="custom-table"><thead><tr><th>Imagen</th><th>Artículo</th><th>Tipo</th><th>Categoría</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+          @for (item of items; track item.id) { <tr><td><div class="item-thumb">@if (item.portada) { <img [src]="item.portada.url" [alt]="item.nombre" /> } @else { <span>Sin imagen</span> }</div></td><td><strong>{{ item.nombre }}</strong><br><small>{{ item.slug }}</small></td><td><span class="badge" [class]="item.tipo === 'SERVICIO' ? 'badge-confirmed' : 'badge-pending'">{{ item.tipo }}</span></td><td>{{ item.categoria?.nombre || 'Sin categoría' }}</td><td>{{ item.precio | currency:'EUR' }}</td><td><span class="badge" [class]="item.activo ? 'badge-confirmed' : 'badge-cancelled'">{{ item.activo ? 'Activo' : 'Inactivo' }}</span></td><td><button class="action-btn edit" (click)="editItem(item)">✏️</button><button class="action-btn delete" (click)="deleteItem(item.id!)">🗑️</button></td></tr> } @empty { <tr><td colspan="7" class="empty">No hay artículos registrados.</td></tr> }
+        </tbody></table></div>
+      } @else {
+        <header class="page-header editor-header"><div><button class="back-btn" (click)="closeForm()">← Volver al listado</button><p class="eyebrow">{{ editingItemId ? 'EDICIÓN' : 'NUEVO ARTÍCULO' }}</p><h2>{{ editingItemId ? 'Editar Producto / Servicio' : 'Crear Producto / Servicio' }}</h2></div></header>
+        <form class="editor-card glass-panel" [formGroup]="itemForm" (ngSubmit)="onSubmit()">
+          <label>Nombre *</label><input class="form-control large-input" formControlName="nombre" placeholder="Nombre del servicio o producto" />
+          <div class="two-fields"><div><label>Precio (€) *</label><input type="number" step=".01" class="form-control" formControlName="precio" /></div><div><label>Tipo *</label><select class="form-control" formControlName="tipo" (change)="onTipoChange()"><option value="SERVICIO">Servicio</option><option value="PRODUCTO">Producto</option></select></div></div>
+          <div class="category-block"><div class="category-label"><label>Categoría</label><button type="button" class="link-btn" (click)="showNewCategory=!showNewCategory">{{ showNewCategory ? 'Ocultar' : '+ Nueva categoría' }}</button></div><select class="form-control" formControlName="categoriaId"><option [value]="null">Sin categoría</option>@for (cat of categories; track cat.id) { <option [value]="cat.id">{{ cat.nombre }}</option> }</select>@if(showNewCategory){<div class="new-category"><input class="form-control" [value]="newCategoryName" (input)="newCategoryName=$any($event.target).value" placeholder="Nombre de categoría"/><button type="button" class="btn btn-secondary btn-sm" (click)="createCategory()">Crear</button></div>}</div>
+          <div class="two-fields">@if (itemForm.get('tipo')?.value === 'SERVICIO') { <div><label>Duración (minutos)</label><input type="number" class="form-control" formControlName="duracionMinutos" /></div> } @else { <div><label>Stock</label><input type="number" class="form-control" formControlName="stock" /></div> }</div>
+          <label>Imagen destacada</label><div class="cover-picker"><div class="cover-preview">@if(selectedCover){<img [src]="selectedCover.url" [alt]="selectedCover.filename"/>}@else{<span>Sin imagen</span>}</div><button type="button" class="btn btn-secondary" (click)="openMediaPicker()">▣ Seleccionar de Galería</button><button type="button" class="link-btn" (click)="clearCover()" [disabled]="!selectedCover">Quitar</button></div>
+          <label>Descripción</label><textarea class="form-control" formControlName="descripcion" rows="5" placeholder="Describe el servicio o producto..."></textarea>
+          <label class="checkbox"><input type="checkbox" formControlName="activo"/> Artículo activo</label>
+          <div class="form-actions"><button type="button" class="btn btn-secondary" (click)="closeForm()">Cancelar</button><button class="btn btn-primary" [disabled]="itemForm.invalid">{{ editingItemId ? 'Guardar cambios' : 'Crear artículo' }}</button></div>
+        </form>
       }
-    }
-    .form-sidebar {
-      padding: 1.5rem;
-      border-radius: var(--border-radius-md);
-    }
-    .form-sidebar h3 {
-      font-size: 1.3rem;
-      margin-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 0.5rem;
-    }
-    .checkbox-group {
-      flex-direction: row;
-      align-items: center;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-    .form-actions {
-      display: flex;
-      gap: 1rem;
-      margin-top: 1.5rem;
-    }
-    .action-btn {
-      background: none;
-      border: none;
-      font-size: 1.1rem;
-      cursor: pointer;
-      padding: 0.25rem;
-      transition: transform 0.2s ease;
-    }
-    .action-btn:hover {
-      transform: scale(1.2);
-    }
+      @if (mediaPickerOpen) { <div class="modal-backdrop" (click)="closeMediaPicker()"><section class="media-modal glass-panel" (click)="$event.stopPropagation()"><header><h3>Biblioteca de Medios</h3><button class="action-btn" type="button" (click)="closeMediaPicker()">✕</button></header><div class="media-grid">@for(file of mediaFiles;track file.id){<button type="button" class="media-option" (click)="selectCover(file)"><img [src]="file.url" [alt]="file.filename"/><span>{{ file.filename }}</span></button>}@empty{<p>No hay imágenes disponibles.</p>}</div></section></div> }
+    </section>`,
+  styles: [`
+    .catalog-manager{width:100%;display:flex;flex-direction:column;gap:1.5rem}.page-header{display:flex;justify-content:space-between;align-items:center;gap:1rem}.page-header h2{margin:.15rem 0;font-size:2rem}.page-header p{margin:0;color:var(--text-secondary)}.eyebrow{color:var(--accent-gold)!important;font-size:.75rem;font-weight:700;letter-spacing:.12em}.listing,.editor-card{border-radius:var(--border-radius-md);box-sizing:border-box;padding:1.5rem;width:100%}.custom-table td{vertical-align:middle}.custom-table small{color:var(--text-muted)}.item-thumb,.cover-preview{aspect-ratio:16/9;background:#111827;border:1px solid var(--border-color);border-radius:8px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;overflow:hidden}.item-thumb{width:100px;font-size:.7rem}.item-thumb img,.cover-preview img,.media-option img{height:100%;object-fit:cover;width:100%}.empty{text-align:center;padding:3rem}.action-btn{background:none;border:0;cursor:pointer;font-size:1.1rem;padding:.3rem}.action-btn:hover{transform:scale(1.15)}.editor-header{align-items:flex-start}.back-btn,.link-btn{background:none;border:0;color:var(--accent-gold);cursor:pointer;padding:0 0 .75rem}.editor-card{display:flex;flex-direction:column;gap:.75rem;margin:auto;max-width:1100px;padding:2.5rem}.editor-card label{color:var(--text-secondary);font-weight:600}.large-input{font-size:1.1rem;padding:.85rem}.two-fields{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.two-fields>div{display:flex;flex-direction:column;gap:.5rem}.category-label,.new-category,.cover-picker{display:flex;align-items:center;gap:.75rem}.category-label{justify-content:space-between}.new-category{margin-top:.5rem}.cover-preview{height:120px;width:215px}.checkbox{align-self:flex-start;display:flex;gap:.5rem;align-items:center}.form-actions{display:flex;gap:1rem;justify-content:flex-end;margin-top:1rem}.modal-backdrop{position:fixed;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.72);padding:1rem;z-index:1000}.media-modal{border-radius:var(--border-radius-md);max-height:80vh;overflow:auto;padding:1.5rem;width:min(900px,100%)}.media-modal header{display:flex;justify-content:space-between;align-items:center}.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem}.media-option{background:#111827;border:1px solid var(--border-color);border-radius:7px;color:var(--text-secondary);cursor:pointer;overflow:hidden;padding:0;text-align:left}.media-option span{display:block;font-size:.75rem;overflow:hidden;padding:.45rem;text-overflow:ellipsis;white-space:nowrap}@media(max-width:700px){.page-header,.cover-picker{align-items:flex-start;flex-direction:column}.two-fields{grid-template-columns:1fr}.editor-card{padding:1.25rem}.listing{overflow-x:auto}}
   `]
 })
 export class AdminCatalogComponent implements OnInit {
-  private catalogService = inject(CatalogService);
-  private mediaService = inject(MediaService);
-  private fb = inject(FormBuilder);
-
-  items: CatalogItem[] = [];
-  categories: Category[] = [];
-  mediaFiles: MediaFile[] = [];
-
-  showForm = false;
-  editingItemId: number | null = null;
-
-  itemForm: FormGroup = this.fb.group({
-    nombre: ['', [Validators.required]],
-    precio: [0.0, [Validators.required, Validators.min(0)]],
-    tipo: ['SERVICIO', [Validators.required]],
-    categoriaId: [null],
-    duracionMinutos: [null],
-    stock: [null],
-    portadaId: [null],
-    descripcion: [''],
-    activo: [true]
-  });
-
-  ngOnInit(): void {
-    this.loadCatalog();
-    this.loadCategories();
-    this.loadMedia();
-  }
-
-  loadCatalog(): void {
-    this.catalogService.getCatalogItems(true).subscribe({
-      next: (data) => {
-        this.items = data;
-      },
-      error: () => {
-        this.loadMockCatalog();
-      }
-    });
-  }
-
-  private loadMockCatalog(): void {
-    this.items = [
-      { id: 1, nombre: 'Corte de Autor & Estilismo', descripcion: 'Servicio de corte premium.', precio: 35.0, tipo: 'SERVICIO', duracionMinutos: 45, categoria: { id: 1, nombre: 'Cortes', tipo: 'SERVICIO' }, activo: true }
-    ];
-  }
-
-  loadCategories(): void {
-    this.catalogService.getCategories().subscribe(data => {
-      this.categories = data;
-    });
-  }
-
-  loadMedia(): void {
-    this.mediaService.getAllMedia().subscribe(data => {
-      this.mediaFiles = data;
-    });
-  }
-
-  onTipoChange(): void {
-    const tipo = this.itemForm.get('tipo')?.value;
-    if (tipo === 'SERVICIO') {
-      this.itemForm.get('stock')?.setValue(null);
-    } else {
-      this.itemForm.get('duracionMinutos')?.setValue(null);
-    }
-  }
-
-  openCreateForm(): void {
-    this.editingItemId = null;
-    this.itemForm.reset({
-      nombre: '',
-      precio: 0.0,
-      tipo: 'SERVICIO',
-      categoriaId: '',
-      duracionMinutos: null,
-      stock: null,
-      portadaId: null,
-      descripcion: '',
-      activo: true
-    });
-    this.showForm = true;
-  }
-
-  editItem(item: CatalogItem): void {
-    this.editingItemId = item.id!;
-    this.itemForm.patchValue({
-      nombre: item.nombre,
-      precio: item.precio,
-      tipo: item.tipo,
-      categoriaId: item.categoria?.id || '',
-      duracionMinutos: item.duracionMinutos,
-      stock: item.stock,
-      portadaId: item.portada?.id || null,
-      descripcion: item.descripcion,
-      activo: item.activo
-    });
-    this.showForm = true;
-  }
-
-  onSubmit(): void {
-    if (this.itemForm.valid) {
-      const val = this.itemForm.value;
-      const req: CatalogItemRequest = {
-        nombre: val.nombre,
-        precio: val.precio,
-        tipo: val.tipo,
-        categoriaId: Number(val.categoriaId),
-        duracionMinutos: val.duracionMinutos ? Number(val.duracionMinutos) : null,
-        stock: val.stock ? Number(val.stock) : null,
-        portadaId: val.portadaId ? Number(val.portadaId) : null,
-        descripcion: val.descripcion,
-        activo: val.activo
-      };
-
-      if (this.editingItemId) {
-        this.catalogService.updateCatalogItem(this.editingItemId, req).subscribe({
-          next: () => {
-            this.loadCatalog();
-            this.closeForm();
-          },
-          error: (err) => alert('Error al guardar: ' + (err.error?.error || 'error desconocido'))
-        });
-      } else {
-        this.catalogService.createCatalogItem(req).subscribe({
-          next: () => {
-            this.loadCatalog();
-            this.closeForm();
-          },
-          error: (err) => alert('Error al crear: ' + (err.error?.error || 'error desconocido'))
-        });
-      }
-    }
-  }
-
-  deleteItem(id: number): void {
-    if (confirm('¿Estás seguro de que deseas eliminar este artículo?')) {
-      this.catalogService.deleteCatalogItem(id).subscribe({
-        next: () => {
-          this.loadCatalog();
-        },
-        error: (err) => alert('Error al eliminar: ' + (err.error?.error || 'error desconocido'))
-      });
-    }
-  }
-
-  closeForm(): void {
-    this.showForm = false;
-    this.editingItemId = null;
-  }
+  private readonly catalogService=inject(CatalogService); private readonly mediaService=inject(MediaService); private readonly fb=inject(FormBuilder);
+  items:CatalogItem[]=[]; categories:Category[]=[]; mediaFiles:MediaFile[]=[]; showForm=false; editingItemId:number|null=null; showNewCategory=false; newCategoryName=''; mediaPickerOpen=false; selectedCover:MediaFile|null=null;
+  itemForm:FormGroup=this.fb.group({nombre:['',Validators.required],precio:[0,[Validators.required,Validators.min(0)]],tipo:['SERVICIO',Validators.required],categoriaId:[null],duracionMinutos:[null],stock:[null],portadaId:[null],descripcion:[''],activo:[true]});
+  ngOnInit():void{this.loadCatalog();this.loadCategories();this.mediaService.getAllMedia().subscribe({next:files=>this.mediaFiles=files});}
+  loadCatalog():void{this.catalogService.getCatalogItems(true).subscribe({next:items=>this.items=items,error:()=>this.items=[]});} loadCategories():void{this.catalogService.getCategories('CATALOGO').subscribe({next:categories=>this.categories=categories,error:()=>this.categories=[]});}
+  openCreateForm():void{this.editingItemId=null;this.selectedCover=null;this.itemForm.reset({nombre:'',precio:0,tipo:'SERVICIO',categoriaId:null,duracionMinutos:null,stock:null,portadaId:null,descripcion:'',activo:true});this.showForm=true;}
+  editItem(item:CatalogItem):void{this.editingItemId=item.id!;this.selectedCover=item.portada??null;this.itemForm.patchValue({nombre:item.nombre,precio:item.precio,tipo:item.tipo,categoriaId:item.categoria?.id??null,duracionMinutos:item.duracionMinutos??null,stock:item.stock??null,portadaId:item.portada?.id??null,descripcion:item.descripcion??'',activo:item.activo});this.showForm=true;}
+  closeForm():void{this.showForm=false;this.editingItemId=null;this.mediaPickerOpen=false;} onTipoChange():void{if(this.itemForm.value.tipo==='SERVICIO')this.itemForm.patchValue({stock:null});else this.itemForm.patchValue({duracionMinutos:null});}
+  createCategory():void{const nombre=this.newCategoryName.trim();if(!nombre)return;this.catalogService.createCategory({nombre,tipo:'CATALOGO'}).subscribe({next:category=>{this.categories=[...this.categories,category];this.itemForm.patchValue({categoriaId:category.id});this.newCategoryName='';this.showNewCategory=false;},error:error=>alert('Error al crear categoría: '+(error.error?.error??'error desconocido'))});}
+  openMediaPicker():void{this.mediaPickerOpen=true;}closeMediaPicker():void{this.mediaPickerOpen=false;}selectCover(file:MediaFile):void{this.selectedCover=file;this.itemForm.patchValue({portadaId:file.id});this.closeMediaPicker();}clearCover():void{this.selectedCover=null;this.itemForm.patchValue({portadaId:null});}
+  onSubmit():void{if(this.itemForm.invalid)return;const value=this.itemForm.value;const request:CatalogItemRequest={nombre:value.nombre,precio:Number(value.precio),tipo:value.tipo,categoriaId:value.categoriaId?Number(value.categoriaId):null,duracionMinutos:value.duracionMinutos?Number(value.duracionMinutos):null,stock:value.stock?Number(value.stock):null,portadaId:value.portadaId?Number(value.portadaId):null,descripcion:value.descripcion,activo:value.activo};const result=this.editingItemId?this.catalogService.updateCatalogItem(this.editingItemId,request):this.catalogService.createCatalogItem(request);result.subscribe({next:()=>{this.loadCatalog();this.closeForm();},error:error=>alert('Error al guardar: '+(error.error?.error??'error desconocido'))});}
+  deleteItem(id:number):void{if(confirm('¿Eliminar este artículo?'))this.catalogService.deleteCatalogItem(id).subscribe({next:()=>this.loadCatalog(),error:error=>alert(error.error?.error??'No se pudo eliminar')});}
 }
