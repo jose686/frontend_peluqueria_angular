@@ -1,0 +1,16 @@
+.git
+.gitignore
+.dockerignore
+Dockerfile
+nginx.conf
+node_modules/
+dist/
+.angular/
+.vscode/
+.idea/
+.agent/
+.agent-skills/
+.skills/
+.agents/
+.claude/
+.cursor/

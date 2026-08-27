@@ -40,3 +40,18 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Asistentes IA
+.agent/
+.agent-skills/
+.skills/
+.agents/
+.claude/
+.cursor/
+
+# Entorno e IDEs
+.env
+.idea/
+.vscode/
+node_modules/
+dist/
