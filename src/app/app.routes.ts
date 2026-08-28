@@ -10,35 +10,43 @@ import { AppointmentBookingComponent } from './components/client/appointment-boo
 import { AdminDashboardComponent } from './components/admin/dashboard/admin-dashboard.component';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
-
 import { WorkerRegistrationComponent } from './components/admin/worker-registration/worker-registration.component';
+import { SetupComponent } from './components/public/setup/setup.component';
+import { setupGuard } from './guards/setup.guard';
 
 export const routes: Routes = [
-  { path: '', component: HomeComponent },
-  { path: 'catalog', component: CatalogComponent },
-  { path: 'blog', component: BlogComponent },
-  { path: 'blog/:slug', component: BlogPostViewComponent },
-  { path: 'login', component: LoginComponent },
-  { path: 'register', component: RegisterComponent },
-  { 
-    path: 'mis-citas', 
-    component: MisCitasComponent
-  },
-  { 
-    path: 'reservar', 
-    component: AppointmentBookingComponent
-  },
-  { 
-    path: 'admin', 
-    component: AdminDashboardComponent, 
-    canActivate: [authGuard, roleGuard], 
-    data: { expectedRoles: ['ROLE_ADMIN', 'ROLE_WORKER'] } 
-  },
-  { 
-    path: 'admin/workers/register', 
-    component: WorkerRegistrationComponent, 
-    canActivate: [authGuard, roleGuard], 
-    data: { expectedRoles: ['ROLE_ADMIN'] } 
+  { path: 'setup', component: SetupComponent, canActivate: [setupGuard] },
+  {
+    path: '',
+    canActivate: [setupGuard],
+    children: [
+      { path: '', component: HomeComponent },
+      { path: 'catalog', component: CatalogComponent },
+      { path: 'blog', component: BlogComponent },
+      { path: 'blog/:slug', component: BlogPostViewComponent },
+      { path: 'login', component: LoginComponent },
+      { path: 'register', component: RegisterComponent },
+      { 
+        path: 'mis-citas', 
+        component: MisCitasComponent
+      },
+      { 
+        path: 'reservar', 
+        component: AppointmentBookingComponent
+      },
+      { 
+        path: 'admin', 
+        component: AdminDashboardComponent, 
+        canActivate: [authGuard, roleGuard], 
+        data: { expectedRoles: ['ROLE_ADMIN', 'ROLE_WORKER'] } 
+      },
+      { 
+        path: 'admin/workers/register', 
+        component: WorkerRegistrationComponent, 
+        canActivate: [authGuard, roleGuard], 
+        data: { expectedRoles: ['ROLE_ADMIN'] } 
+      }
+    ]
   },
   { path: '**', redirectTo: '' }
 ];

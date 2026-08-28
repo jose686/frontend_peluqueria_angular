@@ -26,31 +26,50 @@ import { CurrencyPipe, SlicePipe } from '@angular/common';
       <p class="section-desc">Cortes de diseño, tratamientos reparadores, coloraciones personalizadas y más.</p>
       
       <div class="services-grid">
-        @for (item of featuredServices; track item.id) {
-          <div class="service-card glass-card">
-            <div class="service-cover-wrapper">
-              @if (item.portada) {
-                <img [src]="item.portada.url" [alt]="item.nombre" class="service-img" />
-              } @else {
-                <div class="service-img-placeholder">💇‍♀️</div>
-              }
-              <span class="service-category">{{ item.categoria.nombre }}</span>
-            </div>
-            <div class="service-info">
-              <h3>{{ item.nombre }}</h3>
-              <p class="service-desc">{{ item.descripcion | slice:0:100 }}...</p>
-              <div class="service-meta">
-                <span class="service-price">{{ item.precio | currency:'EUR' }}</span>
-                @if (item.duracionMinutos) {
-                  <span class="service-duration">⏱️ {{ item.duracionMinutos }} min</span>
-                }
+        @if (isLoading) {
+          @for (i of [1, 2, 3]; track i) {
+            <div class="skeleton-card">
+              <div class="skeleton-img"></div>
+              <div class="skeleton-info">
+                <div class="skeleton-title"></div>
+                <div class="skeleton-text"></div>
+                <div class="skeleton-text" style="width: 85%;"></div>
+                <div class="skeleton-meta">
+                  <div class="skeleton-price"></div>
+                  <div class="skeleton-duration"></div>
+                </div>
               </div>
             </div>
-          </div>
-        } @empty {
-          <div class="loading-state">
-            <p>Cargando servicios increíbles...</p>
-          </div>
+          }
+        } @else {
+          @for (item of featuredServices; track item.id) {
+            <div class="service-card glass-card">
+              <div class="service-cover-wrapper">
+                @if (item.portada) {
+                  <img [src]="item.portada.url" [alt]="item.nombre" class="service-img" />
+                } @else {
+                  <div class="service-img-placeholder">💇‍♀️</div>
+                }
+                <span class="service-category">{{ item.categoria.nombre }}</span>
+              </div>
+              <div class="service-info">
+                <h3>{{ item.nombre }}</h3>
+                <p class="service-desc">{{ item.descripcion | slice:0:100 }}...</p>
+                <div class="service-meta">
+                  <span class="service-price">{{ item.precio | currency:'EUR' }}</span>
+                  @if (item.duracionMinutos) {
+                    <span class="service-duration">⏱️ {{ item.duracionMinutos }} min</span>
+                  }
+                </div>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-state">
+              <div class="empty-state-icon">✨</div>
+              <h3 class="empty-state-title">Servicios No Disponibles</h3>
+              <p class="empty-state-desc">Próximamente tendremos listos nuestros mejores servicios para ti. ¡Vuelve pronto!</p>
+            </div>
+          }
         }
       </div>
     </section>
@@ -198,6 +217,100 @@ import { CurrencyPipe, SlicePipe } from '@angular/common';
       padding: 3rem;
       color: var(--text-secondary);
     }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .skeleton-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-md);
+      height: 380px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+    .skeleton-img {
+      height: 200px;
+      background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--border-color) 37%, var(--bg-tertiary) 63%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    .skeleton-info {
+      padding: 1.5rem;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .skeleton-title {
+      height: 1.5rem;
+      width: 70%;
+      background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--border-color) 37%, var(--bg-tertiary) 63%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    .skeleton-text {
+      height: 1rem;
+      width: 100%;
+      background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--border-color) 37%, var(--bg-tertiary) 63%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    .skeleton-meta {
+      margin-top: auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .skeleton-price {
+      height: 1.25rem;
+      width: 30%;
+      background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--border-color) 37%, var(--bg-tertiary) 63%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    .skeleton-duration {
+      height: 1rem;
+      width: 25%;
+      background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--border-color) 37%, var(--bg-tertiary) 63%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 4rem 2rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px dashed var(--border-color);
+      border-radius: var(--border-radius-md);
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .empty-state-icon {
+      font-size: 3rem;
+      color: var(--accent-gold);
+      opacity: 0.8;
+    }
+    .empty-state-title {
+      font-family: var(--font-heading);
+      font-size: 1.5rem;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .empty-state-desc {
+      max-width: 400px;
+      margin: 0;
+      font-size: 0.95rem;
+    }
     @media(max-width: 768px) {
       .hero-title { font-size: 2.5rem; }
       .hero-subtitle { font-size: 1.1rem; }
@@ -208,56 +321,21 @@ import { CurrencyPipe, SlicePipe } from '@angular/common';
 export class HomeComponent implements OnInit {
   private catalogService = inject(CatalogService);
   featuredServices: CatalogItem[] = [];
+  isLoading = true;
 
   ngOnInit(): void {
-    this.catalogService.getCatalogItems().subscribe({
+    this.catalogService.getCatalogItemsByTipo('SERVICIO').subscribe({
       next: (items) => {
         this.featuredServices = items
-          .filter(i => i.tipo === 'SERVICIO' && i.activo)
+          .filter(i => i.activo)
           .slice(0, 3);
-        
-        if (this.featuredServices.length === 0) {
-          this.loadMockData();
-        }
+        this.isLoading = false;
       },
-      error: () => {
-        this.loadMockData();
+      error: (err) => {
+        console.error('Error al cargar servicios destacados:', err);
+        this.featuredServices = [];
+        this.isLoading = false;
       }
     });
-  }
-
-  private loadMockData(): void {
-    this.featuredServices = [
-      {
-        id: 1,
-        nombre: 'Corte de Autor & Estilismo',
-        descripcion: 'Asesoramiento personalizado, lavado relajante con masaje capilar, corte vanguardista y peinado.',
-        precio: 35.00,
-        tipo: 'SERVICIO',
-        duracionMinutos: 45,
-        categoria: { nombre: 'Cortes', tipo: 'SERVICIO' },
-        activo: true
-      },
-      {
-        id: 2,
-        nombre: 'Coloración Aura Gloss',
-        descripcion: 'Color semipermanente libre de amoníaco. Aporta un brillo infinito y nutrición profunda.',
-        precio: 65.00,
-        tipo: 'SERVICIO',
-        duracionMinutos: 90,
-        categoria: { nombre: 'Coloración', tipo: 'SERVICIO' },
-        activo: true
-      },
-      {
-        id: 3,
-        nombre: 'Ritual de Hidratación Sublime',
-        descripcion: 'Terapia molecular de hidratación intensa para reparar la fibra capilar desde el interior.',
-        precio: 45.00,
-        tipo: 'SERVICIO',
-        duracionMinutos: 60,
-        categoria: { nombre: 'Tratamientos', tipo: 'SERVICIO' },
-        activo: true
-      }
-    ];
   }
 }
