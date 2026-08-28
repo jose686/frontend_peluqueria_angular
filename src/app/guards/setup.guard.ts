@@ -1,7 +1,8 @@
 import { CanActivateFn, Router } from '@angular/router';
 import { inject } from '@angular/core';
 import { SetupService } from '../services/setup.service';
-import { map } from 'rxjs/operators';
+import { map, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 export const setupGuard: CanActivateFn = (route, state) => {
   const setupService = inject(SetupService);
@@ -10,7 +11,7 @@ export const setupGuard: CanActivateFn = (route, state) => {
 
   return setupService.getSetupStatus().pipe(
     map(status => {
-      if (status.setupRequired) {
+      if (status?.setupRequired) {
         if (!isSetupRoute) {
           router.navigate(['/setup']);
           return false;
@@ -23,6 +24,10 @@ export const setupGuard: CanActivateFn = (route, state) => {
         }
         return true;
       }
+    }),
+    catchError(err => {
+      console.error('Error al consultar setup status:', err);
+      return of(true); // Permite continuar la navegación si falla la API
     })
   );
 };
