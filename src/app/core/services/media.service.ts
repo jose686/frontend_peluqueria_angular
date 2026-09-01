@@ -24,8 +24,8 @@ export class MediaService {
     if (identificador) {
       formData.append('identificador', identificador);
     }
-    return this.http.post<MediaFileResponse>(`${this.apiUrl}/upload`, formData, { responseType: 'json' }).pipe(
-      map((media) => this.toMediaFile(media))
+    return this.http.post<any>(`${this.apiUrl}/upload`, formData, { responseType: 'json' }).pipe(
+      map((res) => this.normalizeMediaFile(res))
     );
   }
 
@@ -34,7 +34,7 @@ export class MediaService {
       map((res) => {
         const extractList = (response: any): any[] => Array.isArray(response) ? response : (response?.content || response?.data || []);
         const items = extractList(res);
-        return items.map((item) => this.toMediaFile(item));
+        return items.map((item) => this.normalizeMediaFile(item));
       })
     );
   }
@@ -55,23 +55,35 @@ export class MediaService {
     return this.delete(id);
   }
 
-  private toMediaFile(media: any): MediaFile {
-    if (!media) {
+  normalizeMediaFile(mediaResponse: any): MediaFile {
+    let raw = (mediaResponse && typeof mediaResponse === 'object')
+      ? (mediaResponse.data || mediaResponse.content || mediaResponse.result || mediaResponse.item || mediaResponse)
+      : mediaResponse;
+
+    if (Array.isArray(raw)) {
+      raw = raw[0];
+    }
+
+    if (!raw || typeof raw !== 'object') {
       const now = new Date().toISOString();
       return { id: 0, filename: 'archivo', url: '', uploadedAt: now, fechaSubida: now };
     }
-    const dateStr = media.uploadedAt || media.fechaSubida || new Date().toISOString();
-    const rawUrl = media.url || (media.storedFilename ? `/api/media/${media.storedFilename}` : '');
+    const dateStr = raw.uploadedAt || raw.fechaSubida || new Date().toISOString();
+    const rawUrl = raw.url || (raw.storedFilename ? `/api/media/${raw.storedFilename}` : '');
     return {
-      ...media,
-      id: media.id ?? 0,
-      filename: media.filename || media.nombre || 'archivo',
-      storedFilename: media.storedFilename || '',
-      contentType: media.contentType || media.fileType || '',
+      ...raw,
+      id: raw.id ?? 0,
+      filename: raw.filename || raw.nombre || raw.storedFilename || 'archivo',
+      storedFilename: raw.storedFilename || '',
+      contentType: raw.contentType || raw.fileType || '',
       fechaSubida: dateStr,
       uploadedAt: dateStr,
       url: this.buildAbsoluteUrl(rawUrl)
     };
+  }
+
+  toMediaFile(mediaResponse: any): MediaFile {
+    return this.normalizeMediaFile(mediaResponse);
   }
 
   private buildAbsoluteUrl(rawUrl?: string): string {

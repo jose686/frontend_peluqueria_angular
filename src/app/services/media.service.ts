@@ -30,7 +30,7 @@ export class MediaService {
   }
 
   getMediaById(id: number): Observable<MediaFile> {
-    return this.http.get<MediaFile>(`${this.apiUrl}/${id}`).pipe(map(file => this.withAbsoluteUrl(file)));
+    return this.http.get<any>(`${this.apiUrl}/${id}`).pipe(map(file => this.normalizeMediaFile(file)));
   }
 
   uploadFile(file: File, identificador?: string): Observable<MediaFile> {
@@ -39,7 +39,7 @@ export class MediaService {
     if (identificador) {
       formData.append('identificador', identificador);
     }
-    return this.http.post<MediaFile>(`${this.apiUrl}/upload`, formData, { responseType: 'json' }).pipe(map(file => this.withAbsoluteUrl(file)));
+    return this.http.post<any>(`${this.apiUrl}/upload`, formData, { responseType: 'json' }).pipe(map(res => this.normalizeMediaFile(res)));
   }
 
   upload(file: File): Observable<MediaFile> {
@@ -54,8 +54,16 @@ export class MediaService {
     return this.deleteMedia(id);
   }
 
-  private withAbsoluteUrl(file: any): MediaFile {
-    if (!file) {
+  normalizeMediaFile(res: any): MediaFile {
+    let file = (res && typeof res === 'object')
+      ? (res.data || res.content || res.result || res.item || res)
+      : res;
+
+    if (Array.isArray(file)) {
+      file = file[0];
+    }
+
+    if (!file || typeof file !== 'object') {
       return { id: 0, identificador: '', filename: 'archivo', fileType: 'IMAGE', url: '', fechaSubida: new Date().toISOString() };
     }
     const dateStr = file.fechaSubida || file.uploadedAt || new Date().toISOString();
@@ -63,12 +71,18 @@ export class MediaService {
     return {
       ...file,
       id: file.id ?? 0,
-      filename: file.filename || file.nombre || 'archivo',
+      identificador: file.identificador || '',
+      filename: file.filename || file.nombre || file.storedFilename || 'archivo',
       storedFilename: file.storedFilename || '',
       contentType: file.contentType || file.fileType || '',
+      fileType: file.fileType || 'IMAGE',
       fechaSubida: dateStr,
       url: this.buildAbsoluteUrl(rawUrl)
     };
+  }
+
+  private withAbsoluteUrl(res: any): MediaFile {
+    return this.normalizeMediaFile(res);
   }
 
   private buildAbsoluteUrl(rawUrl?: string): string {

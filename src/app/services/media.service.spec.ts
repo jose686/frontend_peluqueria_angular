@@ -17,4 +17,13 @@ describe('MediaService', () => {
     const upload = http.expectOne('http://localhost:8080/api/media/upload'); expect(upload.request.method).toBe('POST'); expect(upload.request.body.get('identificador')).toBe('cover'); upload.flush({ id: 1, filename: 'a.jpg', url: 'a.jpg' });
     const remove = http.expectOne('http://localhost:8080/api/media/1'); expect(remove.request.method).toBe('DELETE'); remove.flush({});
   });
+  it('unpacks wrapped POST response data defensibly via normalizeMediaFile', () => {
+    let result: any;
+    service.uploadFile(new File(['a'], 'test.png')).subscribe(val => result = val);
+    const req = http.expectOne('http://localhost:8080/api/media/upload');
+    req.flush({ data: { id: 42, filename: 'test.png', url: '/uploads/test.png' } });
+    expect(result.id).toBe(42);
+    expect(result.filename).toBe('test.png');
+    expect(result.url).toBe('http://localhost:8080/uploads/test.png');
+  });
 });

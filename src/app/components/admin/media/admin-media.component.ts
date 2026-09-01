@@ -71,8 +71,15 @@ export class AdminMediaComponent implements OnInit {
     this.uploading = true; this.errorMessage = ''; this.noticeMessage = '';
     forkJoin(files.map(file => this.mediaService.upload(file))).pipe(finalize(() => { this.uploading = false; this.isDragOver = false; })).subscribe({
       next: uploaded => {
-        this.mediaFiles = [...uploaded, ...this.mediaFiles];
-        this.noticeMessage = `${uploaded.length} imagen(es) subida(s).`;
+        this.errorMessage = '';
+        const rawList = Array.isArray(uploaded) ? uploaded.flat() : [uploaded];
+        const validList = rawList.filter((item): item is MediaFile => !!item && typeof item === 'object');
+        if (validList.length > 0) {
+          const existingIds = new Set(this.mediaFiles.map(f => f.id));
+          const newItems = validList.filter(f => !existingIds.has(f.id));
+          this.mediaFiles = [...newItems, ...this.mediaFiles];
+          this.noticeMessage = `${validList.length} imagen(es) subida(s).`;
+        }
         this.loadMedia();
       },
       error: error => {
