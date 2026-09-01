@@ -12,7 +12,13 @@ export class MediaService {
   private apiUrl = environment.apiUrl.replace(/\/api\/v1$/, '/api/media');
 
   getAllMedia(): Observable<MediaFile[]> {
-    return this.http.get<MediaFile[]>(this.apiUrl).pipe(map(files => files.map(file => this.withAbsoluteUrl(file))));
+    return this.http.get<any>(this.apiUrl).pipe(
+      map(res => {
+        const extractList = (response: any): any[] => Array.isArray(response) ? response : (response?.content || response?.data || []);
+        const items = extractList(res);
+        return items.map(file => this.withAbsoluteUrl(file));
+      })
+    );
   }
 
   getMediaFiles(): Observable<MediaFile[]> {
@@ -33,7 +39,7 @@ export class MediaService {
     if (identificador) {
       formData.append('identificador', identificador);
     }
-    return this.http.post<MediaFile>(`${this.apiUrl}/upload`, formData).pipe(map(file => this.withAbsoluteUrl(file)));
+    return this.http.post<MediaFile>(`${this.apiUrl}/upload`, formData, { responseType: 'json' }).pipe(map(file => this.withAbsoluteUrl(file)));
   }
 
   upload(file: File): Observable<MediaFile> {
@@ -48,8 +54,21 @@ export class MediaService {
     return this.deleteMedia(id);
   }
 
-  private withAbsoluteUrl(file: MediaFile): MediaFile {
-    return { ...file, url: this.buildAbsoluteUrl(file.url) };
+  private withAbsoluteUrl(file: any): MediaFile {
+    if (!file) {
+      return { id: 0, identificador: '', filename: 'archivo', fileType: 'IMAGE', url: '', fechaSubida: new Date().toISOString() };
+    }
+    const dateStr = file.fechaSubida || file.uploadedAt || new Date().toISOString();
+    const rawUrl = file.url || (file.storedFilename ? `/api/media/${file.storedFilename}` : '');
+    return {
+      ...file,
+      id: file.id ?? 0,
+      filename: file.filename || file.nombre || 'archivo',
+      storedFilename: file.storedFilename || '',
+      contentType: file.contentType || file.fileType || '',
+      fechaSubida: dateStr,
+      url: this.buildAbsoluteUrl(rawUrl)
+    };
   }
 
   private buildAbsoluteUrl(rawUrl?: string): string {

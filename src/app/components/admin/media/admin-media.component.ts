@@ -39,8 +39,19 @@ export class AdminMediaComponent implements OnInit {
   loadMedia(): void {
     this.loading = true; this.errorMessage = '';
     this.mediaService.getMediaFiles().pipe(finalize(() => this.loading = false)).subscribe({
-      next: files => this.mediaFiles = files.sort((a, b) => (b.uploadedAt || b.fechaSubida || '').localeCompare(a.uploadedAt || a.fechaSubida || '')),
-      error: error => this.errorMessage = this.errorFrom(error, 'No se pudo cargar la biblioteca de medios.')
+      next: files => {
+        console.log('Medios recibidos del backend:', files);
+        this.mediaFiles = (files || []).sort((a, b) => {
+          const dateA = String(a?.uploadedAt || a?.fechaSubida || '');
+          const dateB = String(b?.uploadedAt || b?.fechaSubida || '');
+          return dateB.localeCompare(dateA);
+        });
+      },
+      error: error => {
+        console.error('Error detallado al cargar medios:', error);
+        this.mediaFiles = [];
+        this.errorMessage = this.errorFrom(error, 'No se pudo cargar la biblioteca de medios.');
+      }
     });
   }
   onDragOver(event: DragEvent): void { event.preventDefault(); if (!this.uploading) this.isDragOver = true; }
@@ -62,8 +73,12 @@ export class AdminMediaComponent implements OnInit {
       next: uploaded => {
         this.mediaFiles = [...uploaded, ...this.mediaFiles];
         this.noticeMessage = `${uploaded.length} imagen(es) subida(s).`;
+        this.loadMedia();
       },
-      error: error => this.errorMessage = this.errorFrom(error, 'No se pudo subir una de las imágenes.')
+      error: error => {
+        console.error('Error subiendo imagen:', error);
+        this.errorMessage = this.errorFrom(error, 'No se pudo subir una de las imágenes.');
+      }
     });
   }
   private copy(value: string, message: string): void { navigator.clipboard.writeText(value).then(() => this.noticeMessage = message).catch(() => this.errorMessage = 'No se pudo copiar al portapapeles.'); }
