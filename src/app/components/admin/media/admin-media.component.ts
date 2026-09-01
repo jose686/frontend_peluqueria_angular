@@ -38,8 +38,8 @@ export class AdminMediaComponent implements OnInit {
   ngOnInit(): void { this.loadMedia(); }
   loadMedia(): void {
     this.loading = true; this.errorMessage = '';
-    this.mediaService.list().pipe(finalize(() => this.loading = false)).subscribe({
-      next: files => this.mediaFiles = files.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)),
+    this.mediaService.getMediaFiles().pipe(finalize(() => this.loading = false)).subscribe({
+      next: files => this.mediaFiles = files.sort((a, b) => (b.uploadedAt || b.fechaSubida || '').localeCompare(a.uploadedAt || a.fechaSubida || '')),
       error: error => this.errorMessage = this.errorFrom(error, 'No se pudo cargar la biblioteca de medios.')
     });
   }
@@ -58,7 +58,13 @@ export class AdminMediaComponent implements OnInit {
     if (invalid) { this.errorMessage = `"${invalid.name}" no es JPG, PNG o WEBP, o supera 10 MB.`; return; }
     if (!files.length) return;
     this.uploading = true; this.errorMessage = ''; this.noticeMessage = '';
-    forkJoin(files.map(file => this.mediaService.upload(file))).pipe(finalize(() => this.uploading = false)).subscribe({ next: uploaded => { this.mediaFiles = [...uploaded, ...this.mediaFiles]; this.noticeMessage = `${uploaded.length} imagen(es) subida(s).`; }, error: error => this.errorMessage = this.errorFrom(error, 'No se pudo subir una de las imágenes.') });
+    forkJoin(files.map(file => this.mediaService.upload(file))).pipe(finalize(() => { this.uploading = false; this.isDragOver = false; })).subscribe({
+      next: uploaded => {
+        this.mediaFiles = [...uploaded, ...this.mediaFiles];
+        this.noticeMessage = `${uploaded.length} imagen(es) subida(s).`;
+      },
+      error: error => this.errorMessage = this.errorFrom(error, 'No se pudo subir una de las imágenes.')
+    });
   }
   private copy(value: string, message: string): void { navigator.clipboard.writeText(value).then(() => this.noticeMessage = message).catch(() => this.errorMessage = 'No se pudo copiar al portapapeles.'); }
   private errorFrom(error: { error?: { message?: string } }, fallback: string): string { return error.error?.message ?? fallback; }
