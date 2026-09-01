@@ -64,10 +64,47 @@ export class AuthService {
     return localStorage.getItem('auth_token');
   }
 
+  isTokenExpired(token?: string | null): boolean {
+    const jwt = token ?? this.getToken();
+    if (!jwt) return true;
+    try {
+      const parts = jwt.split('.');
+      if (parts.length !== 3) return true;
+      const base64Url = parts[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const payload = JSON.parse(jsonPayload);
+      if (!payload || typeof payload.exp !== 'number') return false;
+      return Date.now() >= payload.exp * 1000;
+    } catch {
+      return true;
+    }
+  }
+
+  isAuthenticated(): boolean {
+    const token = this.getToken();
+    if (!token || this.isTokenExpired(token)) {
+      if (this.currentUserSignal() || token) {
+        this.logout();
+      }
+      return false;
+    }
+    return this.currentUserSignal() !== null;
+  }
+
   private loadSession(): void {
     const token = localStorage.getItem('auth_token');
     const userStr = localStorage.getItem('auth_user');
     if (token && userStr) {
+      if (this.isTokenExpired(token)) {
+        this.logout();
+        return;
+      }
       try {
         const user = JSON.parse(userStr) as User;
         if (user.role === 'ADMIN') user.role = 'ROLE_ADMIN';
