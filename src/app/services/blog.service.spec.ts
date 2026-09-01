@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { BlogService } from './blog.service';
+import { environment } from '../../environments/environment';
 
 describe('BlogService', () => {
   let service: BlogService;
@@ -18,7 +19,7 @@ describe('BlogService', () => {
   it('includes the all flag when retrieving posts', () => {
     service.getAllBlogPosts(true).subscribe(posts => expect(posts).toEqual([]));
 
-    const request = httpMock.expectOne('http://localhost:8080/api/v1/blog?all=true');
+    const request = httpMock.expectOne(`${environment.apiUrl}/blog?all=true`);
     expect(request.request.method).toBe('GET');
     request.flush([]);
   });
@@ -27,7 +28,7 @@ describe('BlogService', () => {
     let receivedStatus: number | undefined;
     service.deleteBlogPost(7).subscribe({ error: error => receivedStatus = error.status });
 
-    const request = httpMock.expectOne('http://localhost:8080/api/v1/blog/7');
+    const request = httpMock.expectOne(`${environment.apiUrl}/blog/7`);
     request.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
 
     expect(receivedStatus).toBe(403);

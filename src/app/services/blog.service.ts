@@ -2,13 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { BlogPost, BlogPostRequest } from '../models/blog.model';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class BlogService {
   private http = inject(HttpClient);
-  private apiUrl = 'http://localhost:8080/api/v1/blog';
+  private apiUrl = `${environment.apiUrl}/blog`;
 
   getAllBlogPosts(all = false): Observable<BlogPost[]> {
     const params = new HttpParams().set('all', all.toString());
