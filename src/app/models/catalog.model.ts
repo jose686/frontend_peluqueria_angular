@@ -29,7 +29,7 @@ export interface CatalogItemRequest {
 }
 
 export interface ServiceItemDto {
-  id: string; // UUID
+  id: number | string;
   nombre: string;
   precio: number;
   duracionMinutos: number;

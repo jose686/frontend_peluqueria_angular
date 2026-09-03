@@ -545,13 +545,13 @@ export class MisCitasComponent implements OnInit {
     this.appointments = [];
   }
 
-  getServiceName(serviceId: string): string {
-    const srv = this.services.find(s => s.id === serviceId);
+  getServiceName(serviceId: string | number): string {
+    const srv = this.services.find(s => String(s.id) === String(serviceId));
     return srv ? srv.nombre : 'Servicio';
   }
 
-  getServicePrice(serviceId: string): number {
-    const srv = this.services.find(s => s.id === serviceId);
+  getServicePrice(serviceId: string | number): number {
+    const srv = this.services.find(s => String(s.id) === String(serviceId));
     return srv ? srv.precio : 0;
   }
 

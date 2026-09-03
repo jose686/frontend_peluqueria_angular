@@ -11,18 +11,18 @@ export class PublicAppointmentService {
   private http = inject(HttpClient);
   private apiUrl = `${environment.apiUrl.replace('/v1', '/public')}/appointments`; // Apunta a /api/public/appointments
 
-  getAvailableSlots(workerId: string, serviceItemId: string, fecha: string): Observable<AvailableSlotsResponse> {
+  getAvailableSlots(workerId: string, serviceItemId: string | number, fecha: string): Observable<AvailableSlotsResponse> {
     const params = new HttpParams()
       .set('workerId', workerId)
-      .set('serviceItemId', serviceItemId)
+      .set('serviceItemId', serviceItemId.toString())
       .set('fecha', fecha);
     return this.http.get<AvailableSlotsResponse>(`${this.apiUrl}/slots`, { params });
   }
 
-  getAvailableDaysRange(workerId: string, serviceItemId: string, startDate: string, endDate: string): Observable<{[key: string]: boolean}> {
+  getAvailableDaysRange(workerId: string, serviceItemId: string | number, startDate: string, endDate: string): Observable<{[key: string]: boolean}> {
     const params = new HttpParams()
       .set('workerId', workerId)
-      .set('serviceItemId', serviceItemId)
+      .set('serviceItemId', serviceItemId.toString())
       .set('startDate', startDate)
       .set('endDate', endDate);
     return this.http.get<{[key: string]: boolean}>(`${this.apiUrl}/slots/range`, { params });

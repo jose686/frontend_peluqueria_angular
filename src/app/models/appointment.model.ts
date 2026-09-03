@@ -3,7 +3,7 @@ export interface AppointmentDto {
   userId?: string; // UUID (nullable)
   customerId?: string; // UUID (nullable)
   workerId: string; // UUID
-  serviceItemId: string; // UUID
+  serviceItemId: number | string;
   fecha: string; // LocalDate (YYYY-MM-DD)
   horaInicio: string; // LocalTime (HH:mm or HH:mm:ss)
   horaFin: string; // LocalTime (HH:mm or HH:mm:ss)
@@ -17,7 +17,7 @@ export interface AppointmentDto {
 
 export interface AppointmentRequest {
   workerId: string; // UUID
-  serviceItemId: string; // UUID
+  serviceItemId: number | string;
   fecha: string; // LocalDate (YYYY-MM-DD)
   horaInicio: string; // LocalTime (HH:mm)
 }
@@ -37,7 +37,7 @@ export interface OtpVerifyResponse {
 
 export interface PublicBookRequest {
   workerId: string;
-  serviceItemId: string;
+  serviceItemId: number | string;
   fecha: string;
   horaInicio: string;
   nombre: string;

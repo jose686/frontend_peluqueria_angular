@@ -40,10 +40,10 @@ export class AppointmentService {
     return this.http.get<AppointmentDto[]>(this.apiUrl);
   }
 
-  getAvailableSlots(workerId: string, serviceItemId: string, fecha: string): Observable<AvailableSlotsResponse> {
+  getAvailableSlots(workerId: string, serviceItemId: string | number, fecha: string): Observable<AvailableSlotsResponse> {
     const params = new HttpParams()
       .set('workerId', workerId)
-      .set('serviceItemId', serviceItemId)
+      .set('serviceItemId', serviceItemId.toString())
       .set('fecha', fecha);
     return this.http.get<AvailableSlotsResponse>(`${this.apiUrl}/available`, { params });
   }
