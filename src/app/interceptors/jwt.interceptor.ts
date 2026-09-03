@@ -9,8 +9,10 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const token = authService.getToken();
 
-  // If the token exists, clone the request and set the Authorization header
-  if (token) {
+  const isPublicUrl = req.url.includes('/api/public/') || req.url.includes('/api/v1/public/');
+
+  // If the token exists and it's not a public URL, clone the request and set the Authorization header
+  if (token && !isPublicUrl) {
     req = req.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`
@@ -20,7 +22,7 @@ export const jwtInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
-      if (error.status === 401 || error.status === 403) {
+      if (!isPublicUrl && (error.status === 401 || error.status === 403)) {
         authService.logout();
         const currentUrl = router.url;
         if (!currentUrl.includes('/login')) {
